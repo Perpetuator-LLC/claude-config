@@ -1,6 +1,14 @@
 {
   "theme": "dark",
   "defaultMode": "acceptEdits",
+  "hooks": {
+    "Stop": [
+      {
+        "type": "command",
+        "command": "~/.claude/hooks/check-config-repo.sh"
+      }
+    ]
+  },
   "permissions": {
     "allow": [
       "Bash(git add *)",
