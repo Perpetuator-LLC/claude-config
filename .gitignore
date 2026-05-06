@@ -1,0 +1,6 @@
+# Never commit these
+*.bak
+.DS_Store
+
+# Local overrides (if someone wants them)
+*.local.json

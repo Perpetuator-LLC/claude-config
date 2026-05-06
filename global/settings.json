@@ -1,0 +1,38 @@
+{
+  "theme": "dark",
+  "defaultMode": "acceptEdits",
+  "permissions": {
+    "allow": [
+      "Bash(git add *)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git commit*)",
+      "Bash(git checkout *)",
+      "Bash(git branch*)",
+      "Bash(git stash*)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(grep *)",
+      "Bash(find *)",
+      "Bash(echo *)",
+      "Bash(yarn start*)",
+      "Bash(yarn build*)",
+      "Bash(yarn lint*)",
+      "Bash(yarn test*)",
+      "Bash(yarn stylelint*)",
+      "Bash(ng *)",
+      "Bash(node scripts/*)",
+      "Bash(curl -s http://localhost*)",
+      "Bash(docker ps*)",
+      "Bash(docker logs *)"
+    ],
+    "deny": [
+      "Bash(git push --force*)",
+      "Bash(git reset --hard*)",
+      "Bash(rm -rf *)",
+      "Bash(git push --force-with-lease*)"
+    ]
+  }
+}
+
