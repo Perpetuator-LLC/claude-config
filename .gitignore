@@ -4,3 +4,6 @@
 
 # Local overrides (if someone wants them)
 *.local.json
+
+# Reference material (not part of the distributed config)
+Agent at GH Copilot and Opus/

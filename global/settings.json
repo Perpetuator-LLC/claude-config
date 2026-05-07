@@ -1,11 +1,63 @@
 {
-  "theme": "dark",
-  "defaultMode": "acceptEdits",
   "hooks": {
+    "UserPromptSubmit": [
+      {
+        "type": "command",
+        "command": "bash ~/.claude/hooks/reminder-instructions.sh",
+        "timeout": 5
+      }
+    ],
+    "SessionStart": [
+      {
+        "type": "command",
+        "command": "bash ~/.claude/hooks/session-start.sh",
+        "timeout": 15
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/bash-safety-gate.sh",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/write-safety-gate.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/post-edit-lint.sh",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "type": "command",
-        "command": "~/.claude/hooks/check-config-repo.sh"
+        "command": "bash ~/.claude/hooks/notify-complete.sh",
+        "timeout": 5
+      },
+      {
+        "type": "command",
+        "command": "bash ~/.claude/hooks/check-config-repo.sh",
+        "timeout": 5
       }
     ]
   },
@@ -19,27 +71,73 @@
       "Bash(git checkout *)",
       "Bash(git branch*)",
       "Bash(git stash*)",
+      "Bash(git merge *)",
+      "Bash(git rebase *)",
+      "Bash(git pull*)",
+      "Bash(git fetch*)",
+      "Bash(git remote*)",
+      "Bash(git tag*)",
       "Bash(ls *)",
       "Bash(cat *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(wc *)",
       "Bash(grep *)",
       "Bash(find *)",
       "Bash(echo *)",
-      "Bash(yarn start*)",
-      "Bash(yarn build*)",
-      "Bash(yarn lint*)",
-      "Bash(yarn test*)",
-      "Bash(yarn stylelint*)",
-      "Bash(ng *)",
-      "Bash(node scripts/*)",
-      "Bash(curl -s http://localhost*)",
+      "Bash(pwd)",
+      "Bash(which *)",
+      "Bash(env *)",
+      "Bash(mkdir *)",
+      "Bash(cp *)",
+      "Bash(mv *)",
+      "Bash(touch *)",
+      "Bash(chmod *)",
+      "Bash(curl -s *)",
+      "Bash(jq *)",
+      "Bash(sed *)",
+      "Bash(awk *)",
+      "Bash(sort *)",
+      "Bash(uniq *)",
+      "Bash(diff *)",
+      "Bash(tree *)",
+      "Bash(npm run *)",
+      "Bash(npm test*)",
+      "Bash(npm install*)",
+      "Bash(npx *)",
+      "Bash(yarn *)",
+      "Bash(pnpm *)",
+      "Bash(pip install*)",
+      "Bash(pip list*)",
+      "Bash(python -m pytest*)",
+      "Bash(python -m py_compile*)",
+      "Bash(python -c *)",
+      "Bash(make *)",
+      "Bash(cargo *)",
+      "Bash(go build*)",
+      "Bash(go test*)",
+      "Bash(go run*)",
       "Bash(docker ps*)",
-      "Bash(docker logs *)"
+      "Bash(docker logs *)",
+      "Bash(docker compose *)",
+      "Bash(node *)",
+      "Bash(tsc *)"
     ],
     "deny": [
       "Bash(git push --force*)",
+      "Bash(git push --force-with-lease*)",
       "Bash(git reset --hard*)",
       "Bash(rm -rf *)",
-      "Bash(git push --force-with-lease*)"
+      "Bash(rm -r /*)",
+      "Bash(> /dev/*)",
+      "Bash(dd if=*)",
+      "Bash(mkfs*)",
+      "Bash(:(){ :|:& };:*)",
+      "Bash(chmod -R 777 /*)",
+      "Bash(curl * | bash*)",
+      "Bash(curl * | sh*)",
+      "Bash(wget * | bash*)",
+      "Bash(eval *)"
     ]
   }
 }
