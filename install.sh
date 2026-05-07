@@ -26,8 +26,10 @@ if [[ -d "$CLAUDE_DIR/agents" && ! -L "$CLAUDE_DIR/agents" ]]; then
 fi
 
 # --- Symlink settings and agents (auto-update via git pull) ---
+# Remove existing symlinks first — ln -sf on a dir symlink places the link *inside* the dir
 ln -sf "$REPO_DIR/global/settings.json" "$CLAUDE_DIR/settings.json"
-ln -sf "$REPO_DIR/global/agents" "$CLAUDE_DIR/agents"
+rm -f "$CLAUDE_DIR/agents"
+ln -s "$REPO_DIR/global/agents" "$CLAUDE_DIR/agents"
 
 # --- Copy CLAUDE.md only if it doesn't exist (users personalize this) ---
 if [[ ! -f "$CLAUDE_DIR/CLAUDE.md" ]]; then
