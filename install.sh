@@ -52,31 +52,27 @@ chmod +x "$CLAUDE_DIR/hooks/"*.sh 2>/dev/null || true
 # --- Make project init script executable ---
 chmod +x "$REPO_DIR/init-project.sh"
 
-# --- Merge MCP servers into VS Code user mcp.json ---
-# macOS: ~/Library/Application Support/Code/User/mcp.json
-# Linux: ~/.config/Code/User/mcp.json
-if [[ "$(uname)" == "Darwin" ]]; then
-    VSCODE_USER_DIR="$HOME/Library/Application Support/Code/User"
-else
-    VSCODE_USER_DIR="$HOME/.config/Code/User"
-fi
-MCP_FILE="$VSCODE_USER_DIR/mcp.json"
+# --- Merge MCP servers into ~/.claude.json (Claude Code's config) ---
+# Claude Code stores mcpServers in ~/.claude.json at the top level
+CLAUDE_JSON="$HOME/.claude.json"
 
 if command -v jq &>/dev/null; then
-    mkdir -p "$VSCODE_USER_DIR"
-    if [[ -f "$MCP_FILE" ]]; then
-        # Merge: preserve existing servers, add/overwrite ours
-        jq -s '.[0].servers * .[1].servers | {servers: .}' \
-            "$MCP_FILE" "$REPO_DIR/global/mcp.json" > "$MCP_FILE.tmp" \
-            && mv "$MCP_FILE.tmp" "$MCP_FILE"
-        echo "Merged MCP servers into $MCP_FILE"
+    # Extract servers from global/mcp.json and merge into ~/.claude.json mcpServers
+    NEW_SERVERS="$(jq '.servers' "$REPO_DIR/global/mcp.json")"
+    if [[ -f "$CLAUDE_JSON" ]]; then
+        # Merge: preserve existing mcpServers, add/overwrite ours
+        jq --argjson new "$NEW_SERVERS" '.mcpServers = (.mcpServers // {} | . * $new)' \
+            "$CLAUDE_JSON" > "$CLAUDE_JSON.tmp" \
+            && mv "$CLAUDE_JSON.tmp" "$CLAUDE_JSON"
+        echo "Merged MCP servers into $CLAUDE_JSON"
     else
-        cp "$REPO_DIR/global/mcp.json" "$MCP_FILE"
-        echo "Created $MCP_FILE"
+        # Create a minimal ~/.claude.json with just mcpServers
+        jq -n --argjson new "$NEW_SERVERS" '{mcpServers: $new}' > "$CLAUDE_JSON"
+        echo "Created $CLAUDE_JSON with MCP servers"
     fi
 else
     echo "⚠️  jq not found — skipping MCP server config. Install jq and re-run."
-    echo "   Or manually copy global/mcp.json to: $MCP_FILE"
+    echo "   Or manually add the servers from global/mcp.json to ~/.claude.json under 'mcpServers'"
 fi
 
 echo ""
@@ -91,8 +87,8 @@ for hook in "$REPO_DIR/hooks/"*.sh; do
     echo "    ~/.claude/hooks/$(basename "$hook")"
 done
 echo ""
-echo "  MCP servers (merged into VS Code user config):"
-echo "    $MCP_FILE"
+echo "  MCP servers (merged into Claude Code config):"
+echo "    $CLAUDE_JSON"
 echo ""
 echo "  Copied (personalize these):"
 echo "    ~/.claude/CLAUDE.md"
