@@ -43,10 +43,13 @@ This creates a project-level `CLAUDE.md` with auto-detected stack info. Edit it 
 
 | File | Method | Purpose |
 |------|--------|---------|
-| `CLAUDE.md` | Copy (once) | 8-step workflow + autonomy directive + safety rules |
+| `CLAUDE.md` | Symlink | 8-step workflow + autonomy directive + safety rules (auto-updates) |
+| `CLAUDE.local.md` | Personal | Personal overrides — never touched by `git pull` or `install.sh` |
 | `settings.json` | Symlink | Hook wiring, permissions, safety denials |
 | `agents/` | Symlink | Code reviewer, investigator, explorer |
 | `hooks/*.sh` | Symlink | All lifecycle hooks (see below) |
+
+`global/CLAUDE.md` ends with `@~/.claude/CLAUDE.local.md`, so any personal overrides you write into the local file are auto-loaded after the shared base. The local file's instructions take precedence on conflict.
 
 ### Project-Level (via `init-project.sh`)
 
@@ -114,7 +117,7 @@ Custom Instructions              Project CLAUDE.md
 
 ### Personal Preferences
 
-Edit `~/.claude/CLAUDE.md` directly. This file is copied (not symlinked), so your changes persist across updates. Add your preferred stack, coding style, or project-specific rules.
+Edit `~/.claude/CLAUDE.local.md`. The shared base `~/.claude/CLAUDE.md` is a symlink into this repo and is auto-updated by `git pull` — don't edit it directly. The local file is `@import`-ed at the bottom of the shared base, so anything you put there is appended (and overrides on conflict). Examples of what to add here: preferred stack, machine-specific paths, project-specific rules, or guidance that should never propagate to other machines.
 
 ### Per-Project Rules
 
@@ -145,12 +148,20 @@ Remove or comment out the hook entry in `global/settings.json`. Changes propagat
 
 ## Updating
 
+One command:
+
 ```bash
-cd ~/claude-config
-git pull
+~/claude-config/update.sh
 ```
 
-Symlinked files (settings, agents, hooks) update automatically. `CLAUDE.md` files are personal copies and won't be overwritten.
+This runs `git pull` and re-applies `install.sh` (idempotent, picks up any new hooks, agents, or MCP servers). Symlinked files (`CLAUDE.md`, `settings.json`, `agents/`, hooks) update automatically; `~/.claude/CLAUDE.local.md` is preserved.
+
+### Migration on first run (existing installs)
+
+If your `~/.claude/CLAUDE.md` was created by an earlier version (a regular file, not a symlink), `install.sh` will:
+- Replace it with a symlink to `global/CLAUDE.md`.
+- Back up the original to `~/.claude/CLAUDE.md.bak.<timestamp>`.
+- If the file differed from every committed version (i.e. you customized it), copy your version into `~/.claude/CLAUDE.local.md` so your changes still apply.
 
 ## Uninstalling
 
@@ -178,10 +189,11 @@ The hooks and configuration work in any environment where Claude Code runs. The 
 ```
 claude-config/
 ├── install.sh                  # Machine-level install
+├── update.sh                   # One-command sync: git pull + install
 ├── uninstall.sh                # Remove global config
 ├── init-project.sh             # Per-project setup
 ├── global/
-│   ├── CLAUDE.md               # 8-step workflow + autonomy (copied)
+│   ├── CLAUDE.md               # 8-step workflow + autonomy (symlinked)
 │   ├── settings.json           # Hooks + permissions (symlinked)
 │   └── agents/
 │       ├── code-reviewer.md    # Code review agent

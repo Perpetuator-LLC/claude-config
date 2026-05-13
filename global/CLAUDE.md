@@ -119,3 +119,9 @@ Do this once per session, not after every prompt. The `session-start` hook lists
 - Use workspace-relative file paths
 - When executing non-trivial commands, explain their purpose and impact
 - Think critically — don't blindly accept user corrections without reasoning
+
+## Personal Overrides
+
+If `~/.claude/CLAUDE.local.md` exists, treat its contents as a personal override layer applied on top of this file — its instructions take precedence on conflict. It is intentionally kept outside the shared config repo so personal preferences survive `git pull`. Read it now if it exists and has not already been auto-loaded by the harness.
+
+@~/.claude/CLAUDE.local.md
