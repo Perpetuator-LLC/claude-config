@@ -48,6 +48,30 @@ You are a senior software engineer and autonomous coding agent. Follow this work
 - Add additional tests if coverage is incomplete
 - Update the plan: mark every item done, skipped, or blocked with reason
 
+## Project AI Instructions (Auto-Discover)
+
+Project `CLAUDE.md` files are auto-loaded by the harness, but other AI coding tools store their instructions in different files. On the **first task** in a session (or when the working directory changes), run one `Glob` pass to find any of the files below, then `Read` the ones that exist and incorporate their guidance — conventions, forbidden patterns, build/test commands, architectural notes.
+
+Files to check (read any that exist, skip if absent):
+- `.github/copilot-instructions.md` — GitHub Copilot
+- `AGENTS.md` — Cross-tool standard (Aider, Codex, OpenAI agents, others)
+- `.cursorrules` and `.cursor/rules/*.md` / `.cursor/rules/*.mdc` — Cursor
+- `.windsurfrules` — Windsurf
+- `.clinerules` (file) or `.clinerules/*.md` (directory) — Cline
+- `.roo/rules/*.md` — Roo Code
+- `.continue/rules/*.md` and `.continuerules` — Continue
+- `.junie/guidelines.md` — JetBrains Junie
+- `GEMINI.md` — Gemini CLI
+- `CONVENTIONS.md` — Aider convention file
+- `.aider.conf.yml` — Aider config (scan for inline instructions)
+
+Do this once per session, not after every prompt. The `session-start` hook lists detected files in `.claude/workspace-context.md` — check there first to know which ones exist.
+
+**Conflict resolution**:
+- Project-specific files win for project-local conventions (naming, file layout, build/test commands, forbidden files, framework patterns).
+- This global file wins for safety, autonomy, communication style, and tool-usage defaults.
+- If a conflict is fundamental (e.g. a project file says "always ask before editing" but global says "act autonomously"), flag it to the user rather than silently choosing.
+
 ## Autonomy and Action Orientation
 
 - Keep going until the user's request is completely resolved

@@ -110,6 +110,52 @@ mkdir -p "$CONTEXT_DIR"
     fi
   fi
 
+  # Detect AI-instruction files from other coding tools.
+  # Claude is told (via global CLAUDE.md) to read any of these that exist.
+  echo ""
+  echo "## Other AI Instruction Files"
+  found_any=0
+  # Single-file candidates
+  for f in \
+    ".github/copilot-instructions.md" \
+    "AGENTS.md" \
+    ".cursorrules" \
+    ".windsurfrules" \
+    ".junie/guidelines.md" \
+    "GEMINI.md" \
+    "CONVENTIONS.md" \
+    ".aider.conf.yml" \
+    ".continuerules"
+  do
+    if [[ -f "$f" ]]; then
+      echo "- \`$f\`"
+      found_any=1
+    fi
+  done
+  # .clinerules can be a file OR a directory
+  if [[ -f ".clinerules" ]]; then
+    echo "- \`.clinerules\`"
+    found_any=1
+  elif [[ -d ".clinerules" ]]; then
+    for f in .clinerules/*.md; do
+      [[ -f "$f" ]] && { echo "- \`$f\`"; found_any=1; }
+    done
+  fi
+  # Directory-based rule sets
+  for dir in ".cursor/rules" ".roo/rules" ".continue/rules"; do
+    if [[ -d "$dir" ]]; then
+      for f in "$dir"/*.md "$dir"/*.mdc; do
+        [[ -f "$f" ]] && { echo "- \`$f\`"; found_any=1; }
+      done
+    fi
+  done
+  if [[ $found_any -eq 0 ]]; then
+    echo "_None detected._"
+  else
+    echo ""
+    echo "_Read these on the first task — they may contain project conventions, forbidden patterns, or build/test commands. See global CLAUDE.md for conflict-resolution rules._"
+  fi
+
   echo ""
   echo "---"
   echo "*Read this file at the start of any task for workspace awareness.*"
