@@ -7,3 +7,6 @@
 
 # Reference material (not part of the distributed config)
 Agent at GH Copilot and Opus/
+
+# Claude Code per-session state (worktrees, generated workspace-context, settings.local)
+.claude/

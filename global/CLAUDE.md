@@ -244,6 +244,22 @@ expansion and a non-ASCII codepoint.
 - When executing non-trivial commands, explain their purpose and impact
 - Think critically — don't blindly accept user corrections without reasoning
 
+## Where This Config Lives
+
+The active Claude Code configuration on this machine is **symlinked** from a versioned repo. Editing the files in `~/.claude/` directly will either fail (read-only symlinks point into the repo) or be silently overwritten on the next `update.sh`. To modify behavior, edit the source files in the repo, then re-run the installer when adding new hooks or agents.
+
+| `~/.claude/...` | actual source |
+|---|---|
+| `settings.json` | `~/projects/claude-config/global/settings.json` |
+| `CLAUDE.md` (this file) | `~/projects/claude-config/global/CLAUDE.md` |
+| `agents/*.md` | `~/projects/claude-config/global/agents/*.md` |
+| `hooks/*.sh` | `~/projects/claude-config/hooks/*.sh` |
+| `CLAUDE.local.md` | **not** symlinked — local personal overrides |
+
+After adding a new hook script in the repo (or any other structural change), run `~/projects/claude-config/install.sh` to symlink it into `~/.claude/hooks/`. Existing symlinks update automatically via `git pull` since they point straight into the repo.
+
+See `~/projects/claude-config/README.md` for the full architecture, hook catalog, and how it maps to GitHub Copilot's behavioral model.
+
 ## Personal Overrides
 
 If `~/.claude/CLAUDE.local.md` exists, treat its contents as a personal override layer applied on top of this file — its instructions take precedence on conflict. It is intentionally kept outside the shared config repo so personal preferences survive `git pull`. Read it now if it exists and has not already been auto-loaded by the harness.

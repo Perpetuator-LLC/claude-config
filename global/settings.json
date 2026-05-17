@@ -2,16 +2,26 @@
   "hooks": {
     "UserPromptSubmit": [
       {
-        "type": "command",
-        "command": "bash ~/.claude/hooks/reminder-instructions.sh",
-        "timeout": 5
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/reminder-instructions.sh",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "SessionStart": [
       {
-        "type": "command",
-        "command": "bash ~/.claude/hooks/session-start.sh",
-        "timeout": 15
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/session-start.sh",
+            "timeout": 15
+          }
+        ]
       }
     ],
     "PreToolUse": [
@@ -50,14 +60,36 @@
     ],
     "Stop": [
       {
-        "type": "command",
-        "command": "bash ~/.claude/hooks/notify-complete.sh",
-        "timeout": 5
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/notify-complete.sh",
+            "timeout": 5
+          }
+        ]
       },
       {
-        "type": "command",
-        "command": "bash ~/.claude/hooks/check-config-repo.sh",
-        "timeout": 5
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/check-config-repo.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/worktree-cleanup.sh",
+            "timeout": 10
+          }
+        ]
       }
     ]
   },
@@ -132,13 +164,12 @@
       "Bash(> /dev/*)",
       "Bash(dd if=*)",
       "Bash(mkfs*)",
-      "Bash(:(){ :|:& };:*)",
       "Bash(chmod -R 777 /*)",
       "Bash(curl * | bash*)",
       "Bash(curl * | sh*)",
       "Bash(wget * | bash*)",
       "Bash(eval *)"
     ]
-  }
+  },
+  "effortLevel": "max"
 }
-

@@ -71,6 +71,7 @@ Hooks are the mechanism for replicating Copilot's behavioral injection. They fir
 | `PostToolUse[Write\|Edit]` | `post-edit-lint.sh` | After file edits | Auto syntax-check (Python, TS, JS, Ruby, Go, JSON, YAML, shell) |
 | `Stop` | `notify-complete.sh` | Task finishes | Desktop notification (macOS + Linux) |
 | `Stop` | `check-config-repo.sh` | Task finishes | Warns if this config repo has uncommitted changes |
+| `SessionEnd` | `worktree-cleanup.sh` | Session ends | Auto-removes the session's Claude worktree if clean; logs + notifies if it has uncommitted/unpushed work. Disable per-session with `CLAUDE_WORKTREE_AUTOCLEAN=0`. |
 
 ## Agents
 
@@ -206,7 +207,8 @@ claude-config/
 │   ├── post-edit-lint.sh         # Auto syntax check
 │   ├── session-start.sh          # Workspace context generator
 │   ├── notify-complete.sh        # Desktop notification
-│   └── check-config-repo.sh     # Config repo status check
+│   ├── check-config-repo.sh      # Config repo status check
+│   └── worktree-cleanup.sh       # Auto-clean clean Claude worktrees on SessionEnd
 ├── templates/
 │   └── project-CLAUDE.md        # Project CLAUDE.md template
 └── docs/
