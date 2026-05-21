@@ -45,4 +45,26 @@ if echo "$cmd" | grep -qE '^\s*eval\s+'; then
   exit 2
 fi
 
+# Block secret extraction — secrets must never enter agent context.
+# Catches: cat/grep/head/tail on .env files, keychain access, docker env dumps.
+if echo "$cmd" | grep -qE 'cat\s+.*\.env|head\s+.*\.env|tail\s+.*\.env|less\s+.*\.env|more\s+.*\.env'; then
+  echo "BLOCKED: Reading .env files would expose secrets to the AI context. Use Secure Handoff: write a script with read -rs prompts for the user to run."
+  exit 2
+fi
+
+if echo "$cmd" | grep -qE 'security\s+find-generic-password|security\s+find-internet-password'; then
+  echo "BLOCKED: Keychain access would expose secrets to the AI context. Keychain reads belong in runtime code only, not in development commands."
+  exit 2
+fi
+
+if echo "$cmd" | grep -qE 'docker\s+(exec|inspect).*env|docker\s+(exec|inspect).*\.env|docker\s+(exec|inspect).*secret|docker\s+(exec|inspect).*token|docker\s+(exec|inspect).*password'; then
+  echo "BLOCKED: Extracting secrets from containers would expose them to the AI context. Use Secure Handoff instead."
+  exit 2
+fi
+
+if echo "$cmd" | grep -qE 'printenv|/proc/.*/environ'; then
+  echo "BLOCKED: Reading process environment would expose secrets to the AI context."
+  exit 2
+fi
+
 exit 0
