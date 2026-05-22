@@ -295,15 +295,15 @@ The active Claude Code configuration on this machine is **symlinked** from a ver
 
 | `~/.claude/...` | actual source |
 |---|---|
-| `settings.json` | `~/projects/claude-config/global/settings.json` |
-| `CLAUDE.md` (this file) | `~/projects/claude-config/global/CLAUDE.md` |
-| `agents/*.md` | `~/projects/claude-config/global/agents/*.md` |
-| `hooks/*.sh` | `~/projects/claude-config/hooks/*.sh` |
+| `settings.json` | `~/claude-config/global/settings.json` |
+| `CLAUDE.md` (this file) | `~/claude-config/global/CLAUDE.md` |
+| `agents/*.md` | `~/claude-config/global/agents/*.md` |
+| `hooks/*.sh` | `~/claude-config/hooks/*.sh` |
 | `CLAUDE.local.md` | **not** symlinked — local personal overrides |
 
-After adding a new hook script in the repo (or any other structural change), run `~/projects/claude-config/install.sh` to symlink it into `~/.claude/hooks/`. Existing symlinks update automatically via `git pull` since they point straight into the repo.
+After adding a new hook script in the repo (or any other structural change), run `~/claude-config/install.sh` to symlink it into `~/.claude/hooks/`. Existing symlinks update automatically via `git pull` since they point straight into the repo.
 
-See `~/projects/claude-config/README.md` for the full architecture, hook catalog, and how it maps to GitHub Copilot's behavioral model.
+See `~/claude-config/README.md` for the full architecture, hook catalog, and how it maps to GitHub Copilot's behavioral model.
 
 ## Personal Overrides
 

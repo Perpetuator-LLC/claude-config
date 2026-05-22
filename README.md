@@ -208,7 +208,7 @@ claude-config/
 │   ├── session-start.sh          # Workspace context generator
 │   ├── notify-complete.sh        # Desktop notification
 │   ├── check-config-repo.sh      # Config repo status check
-│   └── worktree-cleanup.sh       # Auto-clean clean Claude worktrees on SessionEnd
+│   └── worktree-cleanup.sh       # Auto-clean Claude worktrees on SessionEnd
 ├── templates/
 │   └── project-CLAUDE.md        # Project CLAUDE.md template
 └── docs/

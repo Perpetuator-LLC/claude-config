@@ -36,7 +36,7 @@ parent_repo="${worktree_path%/.claude/worktrees/*}"
 
 # Sanity
 [[ -d "$worktree_path" ]] || exit 0
-[[ -d "$parent_repo/.git" ]] || exit 0
+git -C "$parent_repo" rev-parse --git-dir >/dev/null 2>&1 || exit 0
 
 # Inspect cleanliness from inside the worktree
 cd "$worktree_path" || exit 0
@@ -47,6 +47,8 @@ branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
 unpushed=""
 if git rev-parse "@{u}" >/dev/null 2>&1; then
   unpushed=$(git log @{u}..HEAD --oneline 2>/dev/null)
+else
+  unpushed="(no upstream configured)"
 fi
 
 ts="[$(date '+%Y-%m-%d %H:%M:%S')]"
@@ -79,8 +81,9 @@ fi
     echo "$ts unpushed commits (on branch $branch):"
     echo "$unpushed" | sed "s|^|$ts   |"
   fi
-  echo "$ts to inspect:   cd $worktree_path"
-  echo "$ts to discard:   git worktree remove --force $worktree_path"
+  escaped_worktree_path=$(printf '%q' "$worktree_path")
+  echo "$ts to inspect:   cd $escaped_worktree_path"
+  echo "$ts to discard:   git worktree remove --force $escaped_worktree_path"
 } >> "$dirty_log"
 
 basename_wt=$(basename "$worktree_path")
