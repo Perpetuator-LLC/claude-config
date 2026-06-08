@@ -247,6 +247,65 @@ Comments and prose strings (no adjacent `$VAR`) can contain any unicode
 you like; the rule is only about the boundary between a parameter
 expansion and a non-ASCII codepoint.
 
+### SSH + Heredoc Variable Expansion Trap
+
+When piping into `ssh "$HOST" '...'` with a single-quoted heredoc body,
+the body is **not expanded locally** — the remote shell sees the literal
+`$VAR`. To smuggle a *local* (non-secret) value into the remote body,
+people often try the break-out pattern:
+
+```bash
+# ❌ FRAGILE — local var inside `'"$VAR"'` is expanded, but every
+# OTHER expansion still happens remotely. If `set -u` is in scope
+# remotely and the body references ANY other unset var (your own
+# typo, a Tuleap CLI environment expectation, etc.), the error
+# message points at the WRONG variable name and you'll chase it.
+ssh "$HOST" '
+  set -u
+  read TOK
+  do_thing "'"$LOCAL_PATH"'" --token "$TOK"
+'
+```
+
+Use this pattern instead — local values travel as positional args to
+`bash -s`, secrets travel via stdin, no quoting puzzles:
+
+```bash
+# ✅ CLEAN — $LOCAL_PATH is shell-quoted into argv (safe — not a secret).
+# Secrets stream in via stdin → `read` (off argv, off `ps`, off history).
+# The heredoc is single-quoted so REMOTE shell does all expansion, but
+# only $1 and the values from `read` exist remotely; nothing else.
+printf '%s\n%s\n' "$SECRET_A" "$SECRET_B" \
+| ssh "$HOST" bash -s "$LOCAL_PATH" <<'REMOTE'
+set -euo pipefail
+LOCAL_PATH="$1"
+read -r A
+read -r B
+do_thing "$LOCAL_PATH" --token "$A" --other "$B"
+REMOTE
+```
+
+This was a real production bug in a rotation script: a Tuleap admin-key
+rotation halted at step 4 with `OPENBAO_SECRET_PATH?: unbound variable`,
+leaving one orphan key minted and the OLD key still live — because the
+`'"$OPENBAO_SECRET_PATH"'` break-out was nested inside a body where
+remote `set -u` was active. The `bash -s "$LOCAL_PATH"` pattern above
+made the second attempt clean.
+
+### Multi-Orphan Rotation
+
+When you find a leaked credential, also check the rest of the same
+identity's credentials (e.g. all access keys on the admin user). A
+rotation that crashed mid-flow may have *minted a new key* before
+crashing — that minted-but-never-wired-up key is now an orphan that
+also needs revoking. The fingerprint to look for: a recent key whose
+`last_used_on` is the minute the prior rotation attempt ran, *and*
+whose description matches the rotation script's template.
+
+Your rotation script should accept a list of stale-key IDs to delete
+in one pass (the legitimate keep-this-one stays out of the list).
+Treat HTTP 404 from each DELETE as success so re-runs are safe.
+
 ## Operational Safety
 
 - Take local, reversible actions freely (editing files, running tests)
