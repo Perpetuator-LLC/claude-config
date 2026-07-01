@@ -46,8 +46,8 @@ if echo "$cmd" | grep -qE '^\s*eval\s+'; then
 fi
 
 # Block secret extraction — secrets must never enter agent context.
-# Catches: cat/grep/head/tail on .env files, keychain access, docker env dumps.
-if echo "$cmd" | grep -qE 'cat\s+.*\.env|head\s+.*\.env|tail\s+.*\.env|less\s+.*\.env|more\s+.*\.env'; then
+# Catches: cat/grep/rg/head/tail on .env files, keychain access, docker env dumps.
+if echo "$cmd" | grep -qE 'cat\s+.*\.env|grep\s+.*\.env|rg\s+.*\.env|head\s+.*\.env|tail\s+.*\.env|less\s+.*\.env|more\s+.*\.env'; then
   echo "BLOCKED: Reading .env files would expose secrets to the AI context. Use Secure Handoff: write a script with read -rs prompts for the user to run."
   exit 2
 fi
