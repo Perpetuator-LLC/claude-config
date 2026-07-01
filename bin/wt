@@ -1,0 +1,229 @@
+#!/usr/bin/env bash
+# wt — git worktree board + safe reconcile, for parallel-agent workflows.
+#
+# When many agents work in parallel, each in its own linked worktree, it gets
+# hard to see what is in flight versus abandoned, and cleanup turns into a
+# manual chore. `wt` gives you one board and one safe reap.
+#
+# Usage:
+#   wt [status]            Board: every worktree for this repo with branch,
+#                          role, ahead/behind the default branch, push state,
+#                          and whether it is merged (i.e. safe to remove).
+#   wt reap [--dry-run]    Remove CLEAN worktrees whose branch is MERGED into
+#           [--remote]     the default branch, and delete the merged branch.
+#                          Dirty / unmerged worktrees are LEFT ALONE and listed.
+#                          Never touches the main worktree, the worktree you are
+#                          standing in, or locked worktrees.
+#                            --dry-run  show the plan, change nothing
+#                            --remote   also delete the merged branch on origin
+#   wt help
+#
+# Installed by claude-config at ~/.claude/bin/wt and as the `git wt` alias.
+# Note: "merged" is ancestor-based. Squash-merged branches will show as
+# in-flight (their commits are not ancestors of the default branch); remove
+# those by hand once you have confirmed the PR landed.
+
+set -uo pipefail
+
+# ---------- colors (only when writing to a terminal) ----------
+if [ -t 1 ]; then
+  BOLD=$'\033[1m'; DIM=$'\033[2m'; RED=$'\033[31m'; GRN=$'\033[32m'
+  YLW=$'\033[33m'; BLU=$'\033[34m'; RST=$'\033[0m'
+else
+  BOLD=""; DIM=""; RED=""; GRN=""; YLW=""; BLU=""; RST=""
+fi
+
+die() { printf '%swt:%s %s\n' "$RED" "$RST" "$*" >&2; exit 1; }
+
+git rev-parse --git-dir >/dev/null 2>&1 || die "not inside a git repository"
+
+# ---------- helpers ----------
+short() {  # collapse $HOME to ~ for display
+  # shellcheck disable=SC2088  # literal ~ is display output, not a path to expand
+  case "$1" in "$HOME"/*) printf '~/%s' "${1#"$HOME"/}";; *) printf '%s' "$1";; esac
+}
+
+trunc() {  # $1=string $2=width  (ASCII-only marker, keeps column alignment)
+  local s="$1" w="$2"
+  if [ "${#s}" -gt "$w" ]; then printf '%s..' "${s:0:w-2}"; else printf '%s' "$s"; fi
+}
+
+default_branch() {
+  local d
+  d=$(git symbolic-ref --quiet refs/remotes/origin/HEAD 2>/dev/null) \
+    && { echo "${d#refs/remotes/origin/}"; return; }
+  for b in main master trunk; do
+    git show-ref --verify --quiet "refs/heads/$b" && { echo "$b"; return; }
+  done
+  git rev-parse --abbrev-ref HEAD 2>/dev/null || echo main
+}
+
+pick_base() {  # most authoritative ref for "merged into <default>"
+  local d="$1"
+  if git show-ref --verify --quiet "refs/remotes/origin/$d"; then echo "origin/$d"
+  else echo "$d"; fi
+}
+
+is_merged() { git merge-base --is-ancestor "$1" "$2" 2>/dev/null; }  # $1=ref/sha $2=base
+
+# ---------- parse `git worktree list --porcelain` into parallel arrays ----------
+WT_PATH=(); WT_HEAD=(); WT_BR=(); WT_FLAG=()
+parse_worktrees() {
+  WT_PATH=(); WT_HEAD=(); WT_BR=(); WT_FLAG=()
+  local i=-1 line
+  while IFS= read -r line; do
+    case "$line" in
+      "worktree "*) i=$((i+1)); WT_PATH[i]="${line#worktree }"; WT_HEAD[i]=""; WT_BR[i]=""; WT_FLAG[i]="" ;;
+      "HEAD "*)     WT_HEAD[i]="${line#HEAD }" ;;
+      "branch "*)   WT_BR[i]="${line#branch refs/heads/}" ;;
+      "detached")   WT_BR[i]="" ;;
+      "locked"*)    WT_FLAG[i]="${WT_FLAG[i]} locked" ;;
+      "prunable"*)  WT_FLAG[i]="${WT_FLAG[i]} prunable" ;;
+      "bare")       WT_FLAG[i]="${WT_FLAG[i]} bare" ;;
+    esac
+  done < <(git worktree list --porcelain)
+}
+
+# ---------- status ----------
+cmd_status() {
+  parse_worktrees
+  local def base main cur n i
+  def="$(default_branch)"; base="$(pick_base "$def")"
+  main="${WT_PATH[0]}"
+  cur="$(git rev-parse --show-toplevel 2>/dev/null)"
+  n=${#WT_PATH[@]}
+
+  printf '%s%s%s  %s(default: %s · base: %s)%s\n\n' \
+    "$BOLD" "$(short "$main")" "$RST" "$DIM" "$def" "$base" "$RST"
+  printf '%s  %-34s %-6s %-11s %-11s %-6s %s%s\n' \
+    "$DIM" "BRANCH" "ROLE" "A/B vs def" "PUSH" "MERGD" "PATH" "$RST"
+
+  local reapable=0 inflight=0 attention=0
+  for ((i=0; i<n; i++)); do
+    local p="${WT_PATH[i]}" head="${WT_HEAD[i]}" br="${WT_BR[i]}" fl="${WT_FLAG[i]}"
+    local role="linked"; [ "$i" -eq 0 ] && role="main"
+    local ref="${br:-$head}"
+
+    local dirty=""
+    [ -n "$(git -C "$p" status --porcelain 2>/dev/null)" ] && dirty="yes"
+
+    local ab="-"
+    if [ -n "$head" ]; then
+      local lr a b; lr=$(git rev-list --left-right --count "$head...$base" 2>/dev/null) || lr=""
+      if [ -n "$lr" ]; then read -r a b <<<"$lr"; ab="+${a:-0}/-${b:-0}"; fi
+    fi
+
+    local push="-"
+    if [ -n "$br" ]; then
+      local up ua; up=$(git rev-parse --abbrev-ref "$br@{upstream}" 2>/dev/null) || up=""
+      if [ -z "$up" ]; then push="local-only"
+      else ua=$(git rev-list --count "$up..$br" 2>/dev/null) || ua=0
+        if [ "${ua:-0}" -gt 0 ]; then push="ahead:$ua"; else push="pushed"; fi
+      fi
+    fi
+
+    local merged="no"
+    [ -n "$ref" ] && is_merged "$ref" "$base" && merged="yes"
+
+    local dot brdisp="${br:-detached:${head:0:7}}"
+    if [ "$role" = "main" ]; then dot="$BLU"
+    elif [ -n "$dirty" ]; then dot="$RED"; attention=$((attention+1))
+    elif [ "$merged" = "yes" ]; then dot="$GRN"; reapable=$((reapable+1))
+    else dot="$YLW"; [ "$push" = "local-only" ] && attention=$((attention+1)) || inflight=$((inflight+1))
+    fi
+
+    local tail=""
+    [[ "$fl" == *locked* ]]   && tail="$tail ${DIM}[locked]${RST}"
+    [[ "$fl" == *prunable* ]] && tail="$tail ${DIM}[prunable]${RST}"
+    [ -n "$dirty" ]           && tail="$tail ${RED}[dirty]${RST}"
+
+    printf '%s●%s %-34s %-6s %-11s %-11s %-6s %s%s\n' \
+      "$dot" "$RST" "$(trunc "$brdisp" 34)" "$role" "$ab" "$push" "$merged" "$(short "$p")" "$tail"
+  done
+
+  printf '\n%s%d worktrees%s · %s%d reapable%s · %s%d in-flight%s · %s%d need attention%s\n' \
+    "$BOLD" "$n" "$RST" "$GRN" "$reapable" "$RST" "$YLW" "$inflight" "$RST" "$RED" "$attention" "$RST"
+  printf '%slegend ● %sblue%s=stage(read-only)  %sgreen%s=clean+merged→reap  %syellow%s=in-flight  %sred%s=dirty/local-only%s\n' \
+    "$DIM" "$BLU" "$DIM" "$GRN" "$DIM" "$YLW" "$DIM" "$RED" "$DIM" "$RST"
+  printf '%spreview cleanup:%s wt reap --dry-run\n' "$DIM" "$RST"
+}
+
+# ---------- reap ----------
+cmd_reap() {
+  local dry=0 remote=0 a
+  for a in "$@"; do
+    case "$a" in
+      --dry-run|-n) dry=1 ;;
+      --remote)     remote=1 ;;
+      *) die "unknown option: $a  (wt reap [--dry-run] [--remote])" ;;
+    esac
+  done
+
+  local def base; def="$(default_branch)"
+  if [ "$dry" -eq 1 ]; then git fetch --quiet 2>/dev/null || true
+  else git fetch --prune --quiet 2>/dev/null || true; fi
+  base="$(pick_base "$def")"
+
+  parse_worktrees
+  local cur n i; cur="$(git rev-parse --show-toplevel 2>/dev/null)"; n=${#WT_PATH[@]}
+  local reaped=() left_inflight=() left_dirty=()
+
+  for ((i=1; i<n; i++)); do                 # i=1: never the main worktree
+    local p="${WT_PATH[i]}" head="${WT_HEAD[i]}" br="${WT_BR[i]}" fl="${WT_FLAG[i]}"
+    [ "$p" = "$cur" ] && continue           # never reap the worktree you are in
+    [[ "$fl" == *locked* ]] && continue     # respect locks
+    [[ "$fl" == *bare* ]] && continue
+    [ "$br" = "$def" ] && continue          # never delete the default branch
+    local ref="${br:-$head}" label="${br:-detached:${head:0:7}}"
+
+    if [ -n "$(git -C "$p" status --porcelain 2>/dev/null)" ]; then
+      left_dirty+=("$label  ·  $(short "$p")"); continue
+    fi
+    if ! { [ -n "$ref" ] && is_merged "$ref" "$base"; }; then
+      left_inflight+=("$label  ·  $(short "$p")"); continue
+    fi
+
+    if [ "$dry" -eq 1 ]; then
+      reaped+=("$label  ·  $(short "$p")")
+    else
+      if git worktree remove "$p" 2>/dev/null; then
+        [ -n "$br" ] && git branch -d "$br" >/dev/null 2>&1
+        if [ "$remote" -eq 1 ] && [ -n "$br" ]; then
+          git push origin --delete "$br" >/dev/null 2>&1 || true
+        fi
+        reaped+=("$label  ·  $(short "$p")")
+      else
+        left_inflight+=("$label  ·  $(short "$p")  (remove failed)")
+      fi
+    fi
+  done
+  [ "$dry" -eq 0 ] && git worktree prune 2>/dev/null || true
+
+  local verb="Reaped"; [ "$dry" -eq 1 ] && verb="Would reap"
+  if [ "${#reaped[@]}" -gt 0 ]; then
+    printf '%s%s%s (clean + merged into %s%s):\n' "$GRN" "$verb" "$RST" "$base" "$([ "$remote" -eq 1 ] && echo ', incl. origin')"
+    printf '  %s\n' "${reaped[@]}"
+  else
+    printf '%sNothing to reap — no clean, merged worktrees.%s\n' "$DIM" "$RST"
+  fi
+  if [ "${#left_inflight[@]}" -gt 0 ]; then
+    printf '\n%sLeft alone%s — unmerged (delete by hand once the PR has landed):\n' "$YLW" "$RST"
+    printf '  %s\n' "${left_inflight[@]}"
+  fi
+  if [ "${#left_dirty[@]}" -gt 0 ]; then
+    printf '\n%sLeft alone%s — uncommitted changes:\n' "$RED" "$RST"
+    printf '  %s\n' "${left_dirty[@]}"
+  fi
+  [ "$dry" -eq 1 ] && printf '\n%s(dry run — nothing was changed)%s\n' "$DIM" "$RST"
+}
+
+cmd_help() { sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'; }
+
+# ---------- dispatch ----------
+cmd="${1:-status}"; shift 2>/dev/null || true
+case "$cmd" in
+  status|ls)      cmd_status ;;
+  reap|clean)     cmd_reap "$@" ;;
+  help|-h|--help) cmd_help ;;
+  *) die "unknown command: $cmd  (try: wt help)" ;;
+esac

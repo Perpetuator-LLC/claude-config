@@ -157,6 +157,12 @@ The active config is **symlinked** from a versioned repo — edit the source in 
 
 New hook script → run `~/projects/claude-config/install.sh` to symlink it. Existing symlinks update via `git pull` (they point into the repo). Full architecture: `~/projects/claude-config/README.md`.
 
+## Governance (auto-loaded)
+
+The **Executive/Core governance constitution** — the universal operating rules (G1–G11), the **precedence ladder**, the **engagement-layering** model (how my governance merges with a client's, e.g. WeOwn/FedArc), and the index of the C-Suite role domains — is imported below. The role-specific domains (**Technical · Security · Financial · Legal · Marketing · Operations · Product**) live at `~/.claude/governance/<domain>.md`; **consult the relevant domain doc when working in that area** (they are not auto-loaded, to keep sessions lean). Canonical source: `~/projects/claude-config/governance/`.
+
+@~/.claude/governance/README.md
+
 ## Personal Overrides
 
 If `~/.claude/CLAUDE.local.md` exists, treat it as a personal override layer on top of this file (it wins on conflict). Kept outside the shared repo so it survives `git pull`. Read it now if it exists and wasn't already auto-loaded.

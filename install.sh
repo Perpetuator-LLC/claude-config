@@ -31,6 +31,10 @@ ln -sf "$REPO_DIR/global/settings.json" "$CLAUDE_DIR/settings.json"
 rm -f "$CLAUDE_DIR/agents"
 ln -s "$REPO_DIR/global/agents" "$CLAUDE_DIR/agents"
 
+# --- Symlink governance/ (C-Suite role-domain docs; Core is @imported by global/CLAUDE.md) ---
+rm -f "$CLAUDE_DIR/governance"
+ln -s "$REPO_DIR/governance" "$CLAUDE_DIR/governance"
+
 # --- Install CLAUDE.md as a symlink + personal-overrides layer ---
 # Pattern:
 #   ~/.claude/CLAUDE.md       → symlink to repo's global/CLAUDE.md  (auto-updates)
@@ -111,6 +115,19 @@ chmod +x "$CLAUDE_DIR/hooks/"*.sh 2>/dev/null || true
 # --- Make project init script executable ---
 chmod +x "$REPO_DIR/init-project.sh"
 
+# --- Install CLI helpers (bin/) + register `git wt` alias ---
+# Symlinked into ~/.claude/bin and exposed as `git wt` so it works from any
+# repo without editing PATH. (`wt` = git worktree board + safe reconcile.)
+mkdir -p "$CLAUDE_DIR/bin"
+chmod +x "$REPO_DIR/bin/"* 2>/dev/null || true
+for tool in "$REPO_DIR/bin/"*; do
+    [[ -f "$tool" ]] || continue
+    ln -sf "$tool" "$CLAUDE_DIR/bin/$(basename "$tool")"
+done
+if command -v git >/dev/null 2>&1 && [[ -f "$CLAUDE_DIR/bin/wt" ]]; then
+    git config --global alias.wt "!$CLAUDE_DIR/bin/wt"
+fi
+
 # --- Merge MCP servers into ~/.claude.json (Claude Code's config) ---
 # Claude Code stores mcpServers in ~/.claude.json at the top level
 CLAUDE_JSON="$HOME/.claude.json"
@@ -141,11 +158,15 @@ echo "  Symlinked (auto-update via git pull):"
 echo "    ~/.claude/CLAUDE.md     → global/CLAUDE.md"
 echo "    ~/.claude/settings.json → global/settings.json"
 echo "    ~/.claude/agents/       → global/agents/"
+echo "    ~/.claude/governance/   → governance/  (Core @imported; domains on demand)"
 echo ""
 echo "  Hooks (symlinked):"
 for hook in "$REPO_DIR/hooks/"*.sh; do
     echo "    ~/.claude/hooks/$(basename "$hook")"
 done
+echo ""
+echo "  CLI helpers (symlinked + git alias):"
+echo "    ~/.claude/bin/wt   →   git wt status | git wt reap [--dry-run] [--remote]"
 echo ""
 echo "  MCP servers (merged into Claude Code config):"
 echo "    $CLAUDE_JSON"
