@@ -102,28 +102,19 @@ Can't do 4–6 without an admin token? Stop + surface it — don't harvest an ad
 
 ## Operational Safety
 
-Local reversible actions (edit, test) freely. **Ask before destructive / hard-to-reverse:** delete files/branches, drop tables, `rm -rf`, `git push --force`, `git reset --hard`, amend published commits, push. Never bypass safety checks (`--no-verify`). Don't discard unfamiliar files (may be in-progress work).
+Local reversible actions (edit, test, commit, push to YOUR feature branch) freely. **Ask before destructive / hard-to-reverse:** delete files/branches, drop tables, `rm -rf`, `git push --force`, `git reset --hard`, amend published commits, push directly to main/release branches. Never bypass safety checks (`--no-verify`). Don't discard unfamiliar files (may be in-progress work).
 
-## Parallel Worktree Workflow
+## Developer Flow — work like a developer (2026-07 default)
 
-Many agents per project, each in its own worktree. Follow exactly (overrides "just check it out and look").
+**Default: work in the root checkout (`~/projects/<repo>`) on a feature branch, commit, push, PR.** No handoff ceremony — deliver merge-ready work.
 
-- **Main worktree** (`~/projects/<repo>`, `.git` is a dir) = the human's IDE testing stage — **read-only, never edit/commit/switch branches here.** **Linked worktree** (`git worktree add`, `.git` is a file, auto-created under `<repo>/.claude/worktrees/<name>`) = where you work.
-- Before your first edit, confirm you're not in main:
-  ```bash
-  [ "$(git rev-parse --git-dir)" = "$(git rev-parse --git-common-dir)" ] && echo "MAIN — stop" || echo "LINKED — ok"
-  ```
-- **Branches: descriptive `type/slug`** (`fix/podcast-feed-cache`), not `claude/<random>` — rename on first commit: `git branch -m <name>`.
-- **Handoff for testing** (UI/API/DB/running-app needs the human's eyes): commit in your linked worktree, then print a **TEST THIS** block and wait:
-  ```
-  🧪 TEST THIS
-    Branch:   <branch>        Worktree: <path>
-    Verify:   <behavior>      Where: <route / endpoint / table / log>
-    In main:  git -C <repo> checkout --detach <branch>   (re-run to pick up new commits)
-  ```
-  The human is the single gatekeeper who checks out in main (serialization stops collisions). `--detach` because your branch is already checked out in the linked worktree, and it keeps main read-only.
-- **Push only when asked** (PR / CI / backup / another machine) — not every test cycle.
-- **Cleanup via `git wt`:** `git wt status` (the board), `git wt reap --dry-run` (preview), `git wt reap` (remove merged+clean worktrees/branches; `--remote` for origin too; never touches main/current/locked). Never `worktree remove --force` / `branch -D` something you didn't create without checking `git wt status` first — may be another agent's work.
+- **Branch in the root checkout**: `git checkout -b type/slug` (descriptive, e.g. `fix/podcast-feed-cache`) off the default branch, do the work there, and switch back cleanly when done if the human was on another branch. If the root checkout is dirty with the human's in-progress work, don't touch it — use a linked worktree for that task and say why.
+- **Commit + push is the default**, not the exception: every finished unit of work gets committed AND pushed to its feature branch. Open the PR (gh / MCP / API) when the branch is ready; if PR creation is token-blocked, hand over the one-click create URL.
+- **Condense and consolidate**: few, well-scoped commits over many micro-commits — squash-style batch commits with a documented body beat 15 one-file commits. Consolidate related changes into one branch/PR instead of scattering them.
+- **Finish the job before handing over**: test it, validate it (run the app/endpoint where feasible), run the security pass (gitleaks/bandit-level scan of what you touched), push it, and present it merge-ready. Only bring the human decisions you genuinely cannot make and questions you cannot answer yourself after looking.
+- **Fix bugs you find while working — no permission needed.** In-scope or adjacent bugs: fix them with a regression test in the same or a sibling commit and document them in the commit/PR body. Only defer a found bug when fixing it would balloon the diff (then file/flag it explicitly).
+- **Linked worktrees are the exception**, for true one-offs: parallel agents on the same repo, experiments meant to be discarded, or work that must not disturb the root checkout. Same rules apply there (commit, push, PR). Cleanup via `git wt`: `git wt status` / `git wt reap --dry-run` / `git wt reap`; never `worktree remove --force` / `branch -D` something you didn't create without checking `git wt status` first.
+- **TEST THIS blocks** are for things only a human can verify (visual UI, live infra, third-party consoles) — include one when needed, but don't block push/PR on it.
 
 ## Implementation Discipline
 
