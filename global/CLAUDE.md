@@ -106,14 +106,20 @@ Local reversible actions (edit, test, commit, push to YOUR feature branch) freel
 
 ## Developer Flow — work like a developer (2026-07 default)
 
-**Default: work in the root checkout (`~/projects/<repo>`) on a feature branch, commit, push, PR.** No handoff ceremony — deliver merge-ready work.
+**Default: work locally on feature branches, integrate into the repo's standing `merge` branch, push ONLY `merge`.** One remote branch → one CI build → one PR (`merge` → main) that the human reviews once. No per-feature remote branches, no PR-per-branch churn, no rebase cascade after every merge to main.
 
-- **Branch in the root checkout**: `git checkout -b type/slug` (descriptive, e.g. `fix/podcast-feed-cache`) off the default branch, do the work there, and switch back cleanly when done if the human was on another branch. If the root checkout is dirty with the human's in-progress work, don't touch it — use a linked worktree for that task and say why.
-- **Commit + push is the default**, not the exception: every finished unit of work gets committed AND pushed to its feature branch. Open the PR (gh / MCP / API) when the branch is ready; if PR creation is token-blocked, hand over the one-click create URL.
+- **The `merge` integration branch (2026-06 default).** Every repo keeps ONE standing integration branch named `merge` (local + remote). Workflow per unit of work:
+  1. Branch locally off the default branch: `git checkout -b type/slug` (descriptive, e.g. `fix/podcast-feed-cache`). Work, test, commit there. Work on as many local feature branches as the task needs — they stay LOCAL.
+  2. When a branch is done: switch to `merge` (create from `origin/<default>` if it doesn't exist yet; otherwise `git pull` it), then integrate the feature branch yourself — fast-forward or rebase-merge it, RESOLVE CONFLICTS yourself (rebase the feature branch onto `merge` first when needed).
+  3. Push ONLY `merge`. Keep the single PR `merge` → default branch open (create it once; if PR creation is token-blocked, hand over the one-click URL once). Subsequent pushes just update that PR.
+  4. After the human merges the PR into main: refresh `merge` from the new main (reset or fast-forward) and continue. Keep integrated local feature branches until then; clean them up after.
+- **Branch in the root checkout** when it's free; if the root checkout is dirty with the human's in-progress work, use a linked worktree and say why.
+- **Commit early, integrate when green**: every finished unit of work gets committed on its feature branch AND integrated into `merge` + pushed. Don't leave finished work sitting unpushed on a local branch.
+- **Exceptions that still get their own remote branch/PR**: genuinely risky/experimental work the human wants isolated, security hotfixes needing an out-of-band fast track, or when the human asks. Say so explicitly when doing it.
 - **Condense and consolidate**: few, well-scoped commits over many micro-commits — squash-style batch commits with a documented body beat 15 one-file commits. Consolidate related changes into one branch/PR instead of scattering them.
 - **Finish the job before handing over**: test it, validate it (run the app/endpoint where feasible), run the security pass (gitleaks/bandit-level scan of what you touched), push it, and present it merge-ready. Only bring the human decisions you genuinely cannot make and questions you cannot answer yourself after looking.
 - **Fix bugs you find while working — no permission needed.** In-scope or adjacent bugs: fix them with a regression test in the same or a sibling commit and document them in the commit/PR body. Only defer a found bug when fixing it would balloon the diff (then file/flag it explicitly).
-- **Linked worktrees are the exception**, for true one-offs: parallel agents on the same repo, experiments meant to be discarded, or work that must not disturb the root checkout. Same rules apply there (commit, push, PR). Cleanup via `git wt`: `git wt status` / `git wt reap --dry-run` / `git wt reap`; never `worktree remove --force` / `branch -D` something you didn't create without checking `git wt status` first.
+- **Linked worktrees are the exception**, for true one-offs: parallel agents on the same repo, experiments meant to be discarded, or work that must not disturb the root checkout. Same rules apply there (commit, integrate into `merge`, push `merge`). Cleanup via `git wt`: `git wt status` / `git wt reap --dry-run` / `git wt reap`; never `worktree remove --force` / `branch -D` something you didn't create without checking `git wt status` first.
 - **TEST THIS blocks** are for things only a human can verify (visual UI, live infra, third-party consoles) — include one when needed, but don't block push/PR on it.
 
 ## Implementation Discipline
