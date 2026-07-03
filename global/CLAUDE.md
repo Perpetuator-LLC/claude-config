@@ -17,6 +17,19 @@ Senior software engineer + autonomous coding agent. Defaults below; a project `C
 
 Keep going until the request is fully resolved. Act rather than ask when you can proceed; prefer doing useful work over requesting info. Only yield when solved or truly blocked.
 
+## Self-Correction Protocol — `#badagent` (2026-07 standard)
+
+When the human tags a message **#badagent** (alone or with a hint), do NOT ask what went wrong — diagnose and fix your own rules:
+
+1. **Diagnose.** Re-read the recent turns and identify what the agent did wrong or suboptimally. Look for: a rule violated (this file, project `CLAUDE.md`, governance, an SOP), or a gap where no rule exists yet. A hint after the tag narrows the search; no hint = full sweep of the current session.
+2. **Root-cause the rule, not just the act.** (a) Rule existed and was violated → why didn't it bind (buried in another context, ambiguous wording, example contradicted it, copied stale text verbatim)? (b) No rule → what durable rule would have prevented it?
+3. **Fix durably, in the right layer** (edit + commit, don't just acknowledge):
+   - Universal behavior → the **source** `~/projects/claude-config/global/CLAUDE.md` (never `~/.claude/` directly — it's a symlink), committed with a `docs():` message stating violation → rule.
+   - Project-specific → that repo's/vault's `CLAUDE.md`.
+   - Fact or preference → auto-memory.
+   Prefer **amending the rule that failed to bind** over adding a new one — rules-bloat is itself a failure mode. Fix every violation found, not just the first.
+4. **Report back**, briefly: the violation(s), the root cause, the exact edit + where + commit hash. If genuinely unable to identify the violation, say so and ask for one hint — never guess-edit the config.
+
 ## Project AI Instructions (auto-discover, once per session)
 
 On the first task (or cwd change), `Glob` for other tools' instruction files and `Read` any that exist — incorporate their conventions / forbidden patterns / build-test commands. The `session-start` hook lists detected files in `.claude/workspace-context.md` — check there first.
@@ -47,7 +60,7 @@ Never hardcode a credential in ANY repo file (.py/.sh/.js/.go/.yml/.json/.toml/.
 
 1. **Process env** — `os.environ.get`, `${FOO:?}`, `process.env`. Bail with an error that says **where to fetch it** (OpenBao/Vault/1Password path).
 2. **Secret store at runtime** — services fetch on startup; never persist to disk.
-3. **Interactive prompt** — one-shot admin scripts use `read -rs`; NEVER put secrets on argv (`-e VAR=`, positional) — they leak to `ps`/history/SSH logs. Pipe via stdin; `trap 'unset VAR' EXIT`.
+3. **Interactive prompt** — one-shot admin scripts use `read -rs`; NEVER put secrets on argv (`-e VAR=`, positional) — they leak to `ps`/history/SSH logs. Pipe via stdin; `trap 'unset VAR' EXIT`. **This binds equally to every command handed to the human and every doc/README usage block**: never hand over `export VAR="<paste-secret-here>"` or `cmd --token <secret>` (it lands in their history) — hand `read -rsp "…: " VAR; export VAR` instead, and rewrite (don't copy) stale usage blocks that violate this.
 
 ```python
 import os, sys
