@@ -134,6 +134,7 @@ Local reversible actions (edit, test, commit, push to YOUR feature branch) freel
 - **Fix bugs you find while working — no permission needed.** In-scope or adjacent bugs: fix them with a regression test in the same or a sibling commit and document them in the commit/PR body. Only defer a found bug when fixing it would balloon the diff (then file/flag it explicitly).
 - **Linked worktrees are the exception**, for true one-offs: parallel agents on the same repo, experiments meant to be discarded, or work that must not disturb the root checkout. Same rules apply there (commit, integrate into `merge`, push `merge`). Cleanup via `git wt`: `git wt status` / `git wt reap --dry-run` / `git wt reap`; never `worktree remove --force` / `branch -D` something you didn't create without checking `git wt status` first.
 - **TEST THIS blocks** are for things only a human can verify (visual UI, live infra, third-party consoles) — include one when needed, but don't block push/PR on it.
+- **Script the recipe on the second hand-over.** Any multi-step ops/deploy sequence handed to the human more than once gets locked into a committed script (all steps, all required flags baked in — e.g. a service `deploy.sh`) instead of re-dictated as prose; runbook prose drifts and flags get dropped in transcription.
 
 ## Implementation Discipline
 
