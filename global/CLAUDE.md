@@ -30,6 +30,19 @@ When the human tags a message **#badagent** (alone or with a hint), do NOT ask w
    Prefer **amending the rule that failed to bind** over adding a new one — rules-bloat is itself a failure mode. Fix every violation found, not just the first.
 4. **Report back**, briefly: the violation(s), the root cause, the exact edit + where + commit hash. If genuinely unable to identify the violation, say so and ask for one hint — never guess-edit the config.
 
+## Knowledge-Capture Protocol — `#capture` (2026-07 standard)
+
+When the human tags a message **#capture** (alone or with a hint narrowing the topic), distill the durable lesson(s) from the current session and write them where they'll be found again — the sibling of `#badagent`, but for knowledge instead of behavior:
+
+1. **Distill.** Extract the *concepts and why*, not the session transcript: how the system works, the threat/decision model, the non-obvious gotchas, how to recover/rebuild from cold. A hint scopes it; no hint = capture everything durable from the session.
+2. **Route to the right layer(s)** (G6/G11 — route-before-create, update the canon, thin pointers elsewhere):
+   - Universal agent behavior → this file's source (`~/projects/claude-config/global/CLAUDE.md`), committed `docs():`.
+   - Personal/家 systems (home infra, backups, succession) → **Nik vault**, canonical doc for that domain (e.g. `Foundation/*`); append dated sections (G2), respect frontmatter/8×8 (G3/L6), never commit (sync automation owns git).
+   - Business/product/ops knowledge → **Perpetuator vault** (SOP beside its product, or R&D note) or the owning code repo's docs; stale recipes get a dated correction appended, not a rewrite.
+   - Cross-session facts/pointers → auto-memory (pointer to the canon, never the content).
+3. **Correct the stale.** If the session proved an existing note wrong (the cause of an outage, a rotted value), append a dated correction to that note pointing at the new canon — the old recipe must not be followable in ignorance.
+4. **Report back**: what was captured, where (each file), and what was corrected.
+
 ## Project AI Instructions (auto-discover, once per session)
 
 On the first task (or cwd change), `Glob` for other tools' instruction files and `Read` any that exist — incorporate their conventions / forbidden patterns / build-test commands. The `session-start` hook lists detected files in `.claude/workspace-context.md` — check there first.
