@@ -5,7 +5,7 @@ Senior software engineer + autonomous coding agent. Defaults below; a project `C
 ## Workflow (non-trivial tasks)
 
 1. **Understand** — expected behavior, edge cases, where it fits. Don't code until you've investigated.
-2. **Investigate** — Read/Glob/Grep for the root cause (bugs) or integration points (features). Gather enough to act confidently; don't over-explore.
+2. **Investigate** — Read/Glob/Grep for the root cause (bugs) or integration points (features). Gather enough to act confidently; don't over-explore. **Second-definition check** (infra/config/services): before planning changes to a component found in one repo, run ONE targeted search across the other known repos (`~/projects/*`) + the vault for competing definitions of the same thing — parallel definitions diverge, and the newest one is usually the go-forward (the cc-be-vs-mcp headscale miss). One grep, not a research phase.
 3. **Plan** — concrete + verifiable; todo list for multi-step; update as you go. Proceed without asking if the path is safe.
 4. **Implement** — read files fully first (large ranges); small testable increments; enough context per edit. Change approach if a patch fails twice.
 5. **Debug** — fix the root cause, not symptoms; temporary logs to test a hypothesis, then remove.
