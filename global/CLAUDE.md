@@ -96,7 +96,7 @@ printf '%s\n' "$TOKEN" | ssh "$HOST" 'read T; docker exec -i -e TOKEN="$T" conta
 The token / unseal key / LUKS passphrase / cloud token that *grants* access must never sit usable in plaintext at rest. Keep each in one of four states:
 
 1. **Off-box** — root unlockers (LUKS passphrase, unseal keys, backup private key) in a personal infra-independent vault (Apple Passwords / hardware / offline), **never in the store they recover** (don't keep the safe's combo in the safe).
-2. **Passphrase/biometric-gated** — daily Vault token in macOS Keychain (`VAULT_TOKEN_HELPER`, Touch ID), never plaintext `~/.vault-token` or a shell rc.
+2. **Passphrase/biometric-gated** — daily Vault token in macOS Keychain (`VAULT_TOKEN_HELPER`, Touch ID), never plaintext `~/.vault-token` or a shell rc. Refresh an expired daily token with **`bao login -method=oidc role=operator`** (the standard operator login on this setup); a bao call inside a non-TTY context (ansible lookup, script) needs a prior interactive `bao token lookup` to warm the keychain approval.
 3. **Encrypted volume** — server secrets that must touch disk (rendered `.env`, signing keys, DB data, baked images) only on a LUKS mount (incl. docker data-root).
 4. **Ephemeral** — provisioning/CI tokens env-injected at point of use, short-TTL, revoked after; never in tfvars/state/argv.
 
