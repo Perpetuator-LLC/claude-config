@@ -94,6 +94,36 @@ admin token? **Stop and surface it** — never harvest an admin token from a rem
 Encryption keys, keychain passwords, `.env` contents, OpenBao tokens → **never** in tool output to an
 LLM. Message/document *content* may by design; PII and secrets never.
 
+---
+
+## Service-Credential Posture (2026-07 standard — the mcp-gateway/Gitea lesson)
+
+Adopted 2026-07-09 after the MCP gateway's Gitea token silently rotted through the Gitea
+migration (every `gitea_*` tool 404'd for days). Binding rules for every service-to-service
+credential:
+
+1. **Rotatable in OpenBao, live after at most a service RESTART — never a rebuild.** Every
+   service loads its credentials from OpenBao at startup (or watches them); rotation =
+   write new secret → bounce the consumer. If applying a rotation requires an image rebuild
+   or redeploy, the integration is wrong — fix the loading, not the process.
+2. **Scoped to the service, not a human.** Dedicated service account per consumer
+   (e.g. gitea `mcp-platform`), granted least-privilege via a purpose-named group/team
+   (e.g. org team `mcp-gateway`: read code + write issues/PRs, explicitly-attached repos
+   only — never org-wide, never all-repos, never a human's account as the identity).
+3. **Bind to network origin where the platform supports it** (CIDR allowlist, tailnet IP,
+   mTLS). Where it doesn't (Gitea access tokens have no IP scoping), note the limitation in
+   the rotation script header and compensate: tighter scopes, shorter rotation cadence,
+   on-box minting.
+4. **Rotation scripts verify BEFORE storing, through the consumer's own network path**
+   (e.g. curl from inside the consumer's container), and store NOTHING on failure —
+   a fail-closed check that names the root cause beats a stored-but-broken credential.
+5. **Ephemeral admin tokens for one-shot surgery**: mint on the target box, use, revoke in
+   the same flow (trap EXIT); a failed revocation is an orphan — prune it immediately
+   (multi-orphan rule) and confirm by listing.
+6. **Rotation scripts are infrastructure**: they live in the owning repo, get fixed (not
+   worked around) when topology drifts, and their headers document symptom → root cause →
+   knobs so the next failure is diagnosable from the error text alone.
+
 ## Where this doc lives
 Canonical: `claude-config/governance/security.md` → `~/.claude/governance/security.md`. Extends the
 [Constitution](README.md). Infra/host conventions in [technical.md](technical.md).
