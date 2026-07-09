@@ -124,6 +124,61 @@ credential:
    worked around) when topology drifts, and their headers document symptom → root cause →
    knobs so the next failure is diagnosable from the error text alone.
 
+---
+
+## Runtime Secret Injection (2026-07 standard — the cc-be openbao_exec model)
+
+Adopted from cc-be prod (reference: cc-be `scripts/openbao/openbao_exec.py` +
+`notes/security/RUNTIME_SECRET_INJECTION.md`). The default for EVERY process that needs
+secrets — apps, workers, **and periodic jobs like backups**:
+
+1. **Secrets exist only in the process tree's memory.** An injector (AppRole login → read
+   one KV path → inject as env → `exec` the child) replaces rendered `.env` files entirely.
+   The only secret at rest on a box is the AppRole role_id/secret_id bootstrap pair (0600,
+   LUKS volume). Fail-closed: sealed/unreachable vault ⇒ the child never starts.
+2. **Rotation = `bao kv put`.** If rotating any credential requires placing a file on a box,
+   the integration is wrong (same rule as service-credential posture #1). This includes
+   "config-ish" material like backup public keys — put them IN the KV path too.
+3. **`docker exec` inherits the container's static env** (compose `environment:`), NOT the
+   injected child's. So one-off commands inside an injected container must run through the
+   injector themselves: `docker exec <c> python3 openbao_exec.py -- <cmd>`. Corollary that
+   bit twice (pre-migrate dump, SSV dump): there is NO `postgres` superuser on these
+   clusters — the entrypoint created the vault's `DB_USER`; any tool assuming `-U postgres`
+   fails "role postgres does not exist".
+4. **Handing a human a secrets step**: capture every intermediate into shell VARIABLES via
+   command substitution (`-format=json` + `jq`) — nothing pasted, nothing on argv, nothing
+   in history; the only typed secret is a hidden `read -s` prompt. And match THEIR shell:
+   `read -rsp` is bash-only; zsh needs `read -s 'VAR?prompt'` (empty-var writes from the
+   mismatch caused two silent blank-secret writes to OpenBao).
+
+## Vault access tiers (2026-07 standard — root is not a login)
+
+Three tiers, each with its own ceremony (canonical how-to: mcp
+`docs/ops-runbooks/openbao-operator-auth.md`):
+
+| Tier | Login | TTL | For |
+|---|---|---|---|
+| `operator` (daily) | OIDC SSO+TOTP | 8h | KV reads/writes in granted paths |
+| `admin` (elevation) | OIDC SSO+TOTP, deliberate | 1h | policy/auth/mount changes (new KV grants) |
+| root (break-glass) | `generate-root` ceremony w/ OFFLINE unseal key | minutes, then `token revoke -self` | seal ops, rekey, bootstrapping `admin` itself |
+
+Rules learned live: **`bao policy write` REPLACES the whole policy** — read first, include
+every existing path. **If a provisioning script owns a policy, codify new grants in the
+script** (its extra-paths arg), or the next re-provision silently drops them. A revoked
+root token is dead forever — ceremony remnants in history decode to a corpse.
+
+## Sealed backups (SOP-INFRA-017 posture, proven live 2026-07-09)
+
+The box can neither READ (append-only WORM pusher, no GetObject) nor DECRYPT (public key
+only; private key offline) its own backups; COMPLIANCE object-lock means ransomware can't
+delete history. Plaintext artifacts (dumps, tars) are ephemeral: created, sealed, uploaded,
+shredded in one run — and anything a container writes for later shredding must be created
+`--user`-matched to the shredding user, or root-owned files break cleanup. Dumps that
+persist between runs (pre-deploy restore points) are capped-count AND compressed; pipe
+compression runs under `bash -o pipefail` so a mid-dump failure can't hide behind gzip's
+exit 0. Backup MONITORING must not share fate with the backup maker (a dead celery-beat
+silences a celery dead-man): in-app alerting is a layer, the real check is external.
+
 ## Where this doc lives
 Canonical: `claude-config/governance/security.md` → `~/.claude/governance/security.md`. Extends the
 [Constitution](README.md). Infra/host conventions in [technical.md](technical.md).

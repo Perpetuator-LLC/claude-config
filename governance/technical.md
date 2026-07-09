@@ -107,6 +107,51 @@ versions.
 
 ---
 
+## Service topology: software/state split (2026-07 standard — the cc-be model)
+
+Every service separates **software** (image/repo, rebuildable) from **state** (ONE named
+docker volume: DB data via `PGDATA` subdir + dumps + anything needed for identical
+resurrection). The **runnable unit** for DR is: image (or repo@ref) + state volume +
+OpenBao (secrets) + object storage (media) + edge/DNS — restore = provision box, restore
+volume, `up` at the ref. Two hard rules paid for in a prod outage (cc-be 2026-07-06):
+
+- **A stateful-path flip (PGDATA/volume/bind relocation) NEVER ships ahead of its data
+  migration.** The migration is atomic with, or precedes, the compose change — otherwise a
+  routine deploy silently boots the service on EMPTY storage while the real data sits in
+  the abandoned path. Stage-first, and gate on data-present.
+- **Image ↔ state is a compatibility contract**, not a pairing: restore is always
+  *volume → migrate with this image → verify counts*, never "attach and up".
+
+## Deploys & health (2026-07 standard — pull-based)
+
+- **Boxes deploy themselves** (webhook, HMAC-verified, + catch-up timer gated on CI-green
+  commit status). CI holds no credential that can reach a box; SSH stays operator-only.
+- **Two health surfaces, never conflated**: `/health/` = liveness (shallow, no DB — the
+  container healthcheck) and `/health/ready/` = readiness (DB reachable + no unapplied
+  migrations, 503 on fail — what MONITORING probes). A liveness-only monitor watched a
+  total functional outage stay green.
+- **Monitoring must not share fate with what it watches**: in-app dead-men (celery/beat)
+  are a layer; the authoritative probe is external (blackbox → Alertmanager).
+- **Scripts re-exec'd by path need the git exec bit AND `exec bash "$path"`** — checkout
+  restores committed modes; a 0644 script killed a prod deploy with "Permission denied".
+
+## Shell & CI gotchas (each cost a live failure)
+
+- **Unanchored ignore patterns** (`backups/` in `.gitignore`/`.dockerignore`) match at
+  EVERY depth — `scripts/backups/` was silently never committed and would've been excluded
+  from images. Anchor to root (`/backups/`).
+- **DinD runners**: the daemon never sees the runner's filesystem — `-v` mounts of runner
+  files materialize as empty dirs. Bake files into a scratch image (`COPY` via build
+  context) instead; the context tarball IS DinD-safe.
+- **Pipelines mask failures**: `a | tee`/`a | gzip` return the LAST command's status — any
+  gate or artifact-producing pipe runs under `set -o pipefail` (bash, not dash).
+- **Fixed shared resource names race concurrent sessions** (one pre-push test-DB name
+  broke every first push while two agents worked the repo) — derive per-checkout names.
+- **Commands handed to the human run in THEIR shell** (zsh here): `read -rsp` is
+  bash-only; zsh is `read -s 'VAR?prompt'`. A silent mismatch wrote empty secrets twice.
+
+---
+
 ## Where this doc lives
 Canonical: `claude-config/governance/technical.md` → `~/.claude/governance/technical.md`. Extends the
 [Constitution](README.md). Security-adjacent rules (secrets, supply-chain, access) live in
