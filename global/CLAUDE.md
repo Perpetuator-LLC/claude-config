@@ -43,6 +43,16 @@ When the human tags a message **#capture** (alone or with a hint narrowing the t
 3. **Correct the stale.** If the session proved an existing note wrong (the cause of an outage, a rotted value), append a dated correction to that note pointing at the new canon — the old recipe must not be followable in ignorance.
 4. **Report back**: what was captured, where (each file), and what was corrected.
 
+## Session-Export Protocol — `#SessionSummary` (2026-07 standard)
+
+When the human tags a message **#SessionSummary** (typically because a long thread has degraded and they want a clean-context continuation), produce a complete hand-off a FRESH agent can execute without this session — the sibling of `#capture`, but for *work state* instead of knowledge:
+
+1. **Inventory the incomplete.** Walk the whole session (and the task list) for every action item not fully done — including human-pending steps — each with enough working context (file paths, commands, order, blockers) to act on immediately. Only incomplete items get detail.
+2. **Fence the settled.** List decisions made + one-line rationale as a "do not reopen" table (link the canon docs, don't restate them), and completed work as one-line pointers — so the fresh agent neither re-litigates nor re-does.
+3. **Record what a fresh AI cannot infer** from repo/docs: open PRs and their update semantics, branch/worktree topology, which host runs what, live credential state, verified-catalog values, deliberate design exceptions that look like bugs (e.g. an on-box token that must NOT move to the store).
+4. **Write it as a repo hand-off doc** (`docs/handoff/HANDOFF-<topic>-continuation.md` or the project's equivalent), commit + integrate + push per the developer flow, and end with a short **paste-ready kickoff block** (`Read and do: <path>` + where to start).
+5. **Route side-captures.** Anything durable the summary surfaced (a new concept, a corrected recipe) also goes through `#capture` routing; cross-session pointers → auto-memory.
+
 ## Project AI Instructions (auto-discover, once per session)
 
 On the first task (or cwd change), `Glob` for other tools' instruction files and `Read` any that exist — incorporate their conventions / forbidden patterns / build-test commands. The `session-start` hook lists detected files in `.claude/workspace-context.md` — check there first.
