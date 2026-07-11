@@ -124,6 +124,7 @@ Can't do 4–6 without an admin token? Stop + surface it — don't harvest an ad
 
 ### Shell Gotchas
 
+- **Wrong-venv prompt that survives everything (fixed shell hooks, fresh shells, `cd`):** suspect the VENV ITSELF, not the shell config — a `.venv` created/copied under another project hardcodes that project's path in its `activate` scripts, so activating "this repo's venv" exports the OTHER project's `VIRTUAL_ENV`, and poetry then treats the foreign env as authoritative (all `poetry run` hooks fail "Current Python version is not allowed"). Diagnose in one command: `grep <other-project> <repo>/.venv/bin/activate`. Fix: `rm -rf .venv && env -u VIRTUAL_ENV poetry install`. Related hardening (2026-07-10): repo hooks prepend `unset VIRTUAL_ENV`, and any auto-activate shell hook must call poetry with `env -u VIRTUAL_ENV` (poetry echoes an already-active env back, so a stale `VIRTUAL_ENV` self-validates).
 - **Non-ASCII after `$VAR` in `.sh`:** old bash folds the leading byte into the name → `<var>?: unbound variable` under `set -u`. Worst landmine is `…` right after `$VAR`. Use `$PATH...` or `$PATH …` (ASCII gap), not `$PATH…`. Prose/comments without an adjacent `$VAR` are fine.
 - **SSH + single-quoted heredoc:** the body expands *remotely*. Don't smuggle locals via a `'"$VAR"'` break-out (every other expansion still runs remotely; under remote `set -u` a typo reports the wrong var name). Instead — locals as argv to `bash -s`, secrets via stdin:
   ```bash
