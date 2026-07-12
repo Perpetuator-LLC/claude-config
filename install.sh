@@ -128,6 +128,16 @@ if command -v git >/dev/null 2>&1 && [[ -f "$CLAUDE_DIR/bin/wt" ]]; then
     git config --global alias.wt "!$CLAUDE_DIR/bin/wt"
 fi
 
+# --- Install shell libraries (lib/) for sourcing by operator scripts ---
+# e.g. `. "${CLAUDE_LIB:-$HOME/.claude/lib}/prompt.sh"` — the universal prompt
+# format (self-describing secret prompts; hostnames resolved from the project's
+# ansible inventory, never hardcoded). See global/CLAUDE.md → Prompt & host-name standard.
+mkdir -p "$CLAUDE_DIR/lib"
+for libf in "$REPO_DIR/lib/"*; do
+    [[ -f "$libf" ]] || continue
+    ln -sf "$libf" "$CLAUDE_DIR/lib/$(basename "$libf")"
+done
+
 # --- Merge MCP servers into ~/.claude.json (Claude Code's config) ---
 # Claude Code stores mcpServers in ~/.claude.json at the top level
 CLAUDE_JSON="$HOME/.claude.json"
@@ -167,6 +177,9 @@ done
 echo ""
 echo "  CLI helpers (symlinked + git alias):"
 echo "    ~/.claude/bin/wt   →   git wt status | git wt reap [--dry-run] [--remote]"
+echo ""
+echo "  Shell libraries (symlinked, source from any project):"
+echo "    ~/.claude/lib/prompt.sh   →   prompt_secret / prompt_plain / resolve_host"
 echo ""
 echo "  MCP servers (merged into Claude Code config):"
 echo "    $CLAUDE_JSON"
