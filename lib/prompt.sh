@@ -60,3 +60,24 @@ hosts = (d.get('$group', {}) or {}).get('hosts') or []
 print(hosts[0] if hosts else '')
 " 2>/dev/null
 }
+
+# ensure_bao_role <role>
+#   PRE-FLIGHT a bao session: verify the ACTIVE token was minted for <role> (its
+#   OIDC token meta.role); if not — wrong role, or no/expired session — log in as
+#   <role>. No-op when already correct. Catches a wrong-credential UP FRONT instead
+#   of failing deep in a run (e.g. an operator token where a provisioner is needed).
+#   Returns non-zero only if bao is missing or the login is declined.
+ensure_bao_role() {
+  local want="$1" have=""
+  command -v bao >/dev/null 2>&1 || { printf '⚠️  bao CLI not found — cannot verify session role.\n' >&2; return 1; }
+  if bao token lookup >/dev/null 2>&1; then
+    have="$(bao token lookup -format=json 2>/dev/null \
+      | python3 -c 'import sys,json; print(json.load(sys.stdin).get("data",{}).get("meta",{}).get("role",""))' 2>/dev/null || true)"
+  fi
+  if [ "$have" = "$want" ]; then
+    printf '✓ bao session role=%s — OK.\n' "$want" >&2
+    return 0
+  fi
+  printf "⚠️  bao session role='%s', need '%s' — logging in…\n" "${have:-none}" "$want" >&2
+  bao login -method=oidc "role=${want}" >/dev/null
+}
