@@ -111,6 +111,10 @@ trap 'unset TOKEN 2>/dev/null || true' EXIT
 printf '%s\n' "$TOKEN" | ssh "$HOST" 'read T; docker exec -i -e TOKEN="$T" container cmd'
 ```
 
+### Ask-Once Provisioning (2026-07-12 standard)
+
+A provisioning/setup script that collects credentials interactively must be **re-runnable without re-collecting them** — reruns are the NORM (scripts fail mid-flow, deploys iterate), and re-prompting forces the human to re-find or re-mint secrets every cycle (the credential-audit landing saga). Pattern: **vault-first, prompt-fallback, write-back** — (1) try the secret store first (OpenBao `secret/<engagement>/<purpose>`); (2) prompt ONLY for values the store doesn't have; (3) after the script's own end-to-end verification passes, write collected values back to the store so the next run is zero-prompt. The store is the memory; the prompt is the one-time capture. Scoped-token note: use raw `bao read/write secret/data/<p>` paths — `bao kv` subcommands preflight a UI mount path that scoped tokens are denied.
+
 ### Credential-at-Rest Gating (the meta-credential)
 
 The token / unseal key / LUKS passphrase / cloud token that *grants* access must never sit usable in plaintext at rest. Keep each in one of four states:
@@ -145,6 +149,7 @@ Can't do 4–6 without an admin token? Stop + surface it — don't harvest an ad
   do_thing "$LOCAL_PATH" --token "$A" --other "$B"
   REMOTE
   ```
+- **NEVER pipe secrets into `ssh <host> 'sudo …'`** — without a tty, sudo reads its password from the SAME stdin and silently EATS the first secret line (probes.env landed empty while every check passed, 2026-07-12); with `-t`, the tty collides with the pipe. Two phases, always: (1) pipe secrets over ssh stdin into a user-owned 0600 STAGING file, (2) separate `ssh -t host 'sudo …'` (password on the real tty) merges staging into the root-owned target, shreds staging, and **verifies the keys are non-empty** before declaring success — a landing step that can fail silently WILL.
 - **Multi-orphan rotation:** a rotation that crashed mid-flow may have minted a new key before dying — an orphan to also revoke (fingerprint: recent key, `last_used_on` = the failed run's minute, description matching the script template). Have the script delete a list of stale IDs in one pass; treat 404 as success so re-runs are safe.
 
 ## Operational Safety
