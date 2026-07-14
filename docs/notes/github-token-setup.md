@@ -100,15 +100,23 @@ You can leave all account permissions at "No access" — Claude doesn't need to 
 
 Once GitHub shows you the `github_pat_...` value, install it somewhere `gh` (and therefore Claude Code) can find it.
 
-### Option A: Persistent env var (single-token setup)
+### Option A: Persistent env var — keychain-backed ONLY
 
-Add to `~/.zshrc` (or `~/.bashrc`):
+Never put the token literal in a dotfile (at-rest plaintext + history risk —
+see global CLAUDE.md, Secrets in Code). Store it in the macOS Keychain once
+(hidden prompt, zsh form), then have `~/.zshrc` read it at shell start:
 
 ```bash
-export GH_TOKEN='github_pat_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+# One-time (zsh): hidden prompt → Keychain; the literal never touches a file
+read -s 'GHT?GitHub PAT (from github.com/settings/tokens, for gh CLI): '; echo
+security add-generic-password -a "$USER" -s "gh-token-perpetuator" -w "$GHT"
+unset GHT
 ```
 
-Then `source ~/.zshrc` (or open a new terminal). Every `gh` invocation — including the ones Claude Code makes via Bash — will use this token.
+```bash
+# In .zshrc:
+export GH_TOKEN="$(security find-generic-password -a "$USER" -s "gh-token-perpetuator" -w 2>/dev/null)"
+```
 
 > [!WARNING]
 > This puts a long-lived secret in a plaintext dotfile. If your dotfiles are in a git repo, **make sure they're either private or you're using a secrets manager**. Better: store the token in macOS Keychain / 1Password / pass and have your shell init read it on startup.
@@ -123,8 +131,9 @@ export GH_TOKEN="$(op read 'op://Personal/GitHub PAT Perpetuator/credential' 2>/
 Or with macOS Keychain:
 
 ```bash
-# One-time setup:
-security add-generic-password -a "$USER" -s "gh-token-perpetuator" -w 'github_pat_xxx...'
+# One-time setup (hidden prompt — never the literal on argv):
+read -s 'GHT?GitHub PAT: '; echo
+security add-generic-password -a "$USER" -s "gh-token-perpetuator" -w "$GHT"; unset GHT
 
 # In .zshrc:
 export GH_TOKEN="$(security find-generic-password -a "$USER" -s "gh-token-perpetuator" -w 2>/dev/null)"

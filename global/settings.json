@@ -74,7 +74,8 @@
       "Bash(curl * | bash*)",
       "Bash(curl * | sh*)",
       "Bash(wget * | bash*)",
-      "Bash(eval *)"
+      "Bash(eval *)",
+      "Bash(:(){ :|:& };:)"
     ]
   },
   "hooks": {
@@ -171,6 +172,5 @@
       }
     ]
   },
-  "skipWorkflowUsageWarning": true,
-  "effortLevel": "max"
+  "skipWorkflowUsageWarning": true
 }

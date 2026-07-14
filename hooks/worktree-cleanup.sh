@@ -49,10 +49,6 @@ parent_repo=$(cd "$(dirname "$common_dir")" 2>/dev/null && pwd)
 branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
 [[ "$branch" == "HEAD" ]] && branch=""          # detached
 uncommitted=$(git status --porcelain 2>/dev/null)
-unpushed=""
-if [[ -n "$branch" ]] && git rev-parse "@{u}" >/dev/null 2>&1; then
-  unpushed=$(git log "@{u}..HEAD" --oneline 2>/dev/null)
-fi
 
 # Default branch + "is this branch merged into it?"
 def=$(git symbolic-ref --quiet refs/remotes/origin/HEAD 2>/dev/null); def="${def#refs/remotes/origin/}"
@@ -63,6 +59,18 @@ if [[ -z "$def" ]]; then
 fi
 base="$def"
 git show-ref --verify --quiet "refs/remotes/origin/$def" && base="origin/$def"
+
+unpushed=""
+if [[ -n "$branch" ]]; then
+  if git rev-parse "@{u}" >/dev/null 2>&1; then
+    unpushed=$(git log "@{u}..HEAD" --oneline 2>/dev/null)
+  elif [[ -n "$base" ]]; then
+    # No upstream: commits not on the default base count as unpushed —
+    # otherwise a local-only branch with real work reads as clean and the
+    # only checkout gets removed (Copilot review, PR #2).
+    unpushed=$(git log "$base..HEAD" --oneline 2>/dev/null)
+  fi
+fi
 merged=0
 if [[ -n "$branch" && -n "$base" ]] && git merge-base --is-ancestor HEAD "$base" 2>/dev/null; then
   merged=1

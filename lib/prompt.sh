@@ -50,15 +50,17 @@ prompt_plain() {
 resolve_host() {
   local group="$1" inv="${2:-inventory/hosts.ini}"
   command -v ansible-inventory >/dev/null 2>&1 || return 0
+  # group passed as argv — never interpolated into the code (injection-safe)
   ansible-inventory -i "$inv" --list 2>/dev/null | python3 -c "
 import sys, json
 try:
     d = json.load(sys.stdin)
 except Exception:
     sys.exit(0)
-hosts = (d.get('$group', {}) or {}).get('hosts') or []
+g = sys.argv[1]
+hosts = (d.get(g, {}) or {}).get('hosts') or []
 print(hosts[0] if hosts else '')
-" 2>/dev/null
+" "$group" 2>/dev/null
 }
 
 # ensure_bao_role <role>
