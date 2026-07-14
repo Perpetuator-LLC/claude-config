@@ -227,6 +227,8 @@ The active config is **symlinked** from a versioned repo — edit the source in 
 
 New hook script → run `~/projects/claude-config/install.sh` to symlink it. Existing symlinks update via `git pull` (they point into the repo). Full architecture: `~/projects/claude-config/README.md`.
 
+**Config changes ship like code — PR-reviewed, never direct to main (2026-07-14 standard).** Every `#badagent`/`#capture`/protocol edit to this repo is committed on the standard integration branch (`merge/<agent>`, per the Developer Flow) and reaches `main` ONLY through a human-reviewed PR — no agent commits or pushes to `main` directly. Caveat to state in every such report-back: because the active config is SYMLINKED, an edit is live on THIS machine immediately, pre-review — the PR gates the *published canon* (what other machines and future sessions pull), not local effect. G4 applies: until the PR merges, the rule change is a draft; if review rejects it, revert the local edit too.
+
 ## Governance (auto-loaded)
 
 The **Executive/Core governance constitution** — the universal operating rules (G1–G11), the **precedence ladder**, the **engagement-layering** model (how my governance merges with a client's, e.g. WeOwn/FedArc), and the index of the C-Suite role domains — is imported below. The role-specific domains (**Technical · Security · Financial · Legal · Marketing · Operations · Product**) live at `~/.claude/governance/<domain>.md`; **consult the relevant domain doc when working in that area** (they are not auto-loaded, to keep sessions lean). Canonical source: `~/projects/claude-config/governance/`.
