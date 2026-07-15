@@ -177,11 +177,13 @@ GH_TOKEN="$TOKEN_PERPETUATOR" gh pr view 17 -R Perpetuator-LLC/cc-fe
 GH_TOKEN="$TOKEN_OTHERORG"   gh pr list -R OtherOrg/repo
 ```
 
-Or aliases:
+Or aliases — keychain-backed, never a token literal in the alias (a literal in
+`.zshrc` is at-rest plaintext, the exact thing the one-time Keychain setup above
+avoids; store each org's token under its own service name first):
 
 ```bash
-alias gh-perpetuator='GH_TOKEN=github_pat_xxx gh'
-alias gh-otherorg='GH_TOKEN=github_pat_yyy gh'
+alias gh-perpetuator='GH_TOKEN="$(security find-generic-password -a "$USER" -s gh-token-perpetuator -w)" gh'
+alias gh-otherorg='GH_TOKEN="$(security find-generic-password -a "$USER" -s gh-token-otherorg -w)" gh'
 ```
 
 Claude Code doesn't pick up shell aliases (they don't exist inside its Bash tool's non-interactive subshell), so this option is for **your** terminal, not for Claude. If you want Claude to use a specific token per call, you have to inline the env var in the command itself.
@@ -242,7 +244,10 @@ If you don't need per-repo scoping and want a 30-second setup:
 
 1. Go to **https://github.com/settings/tokens** → "Generate new token (classic)".
 2. Check the **`repo`** scope (covers all read/write on every repo you have access to). Add **`workflow`** if Claude will edit workflow files.
-3. Use it the same way (`export GH_TOKEN=ghp_...` or `gh auth login --with-token`).
+3. Install it the same way as above — the one-time Keychain capture (hidden
+   `read -s` prompt → `security add-generic-password`), or pipe it straight into
+   `gh auth login --with-token` at a hidden prompt. Never `export GH_TOKEN=<literal>`
+   in a dotfile or terminal (history + at-rest risk).
 
 Trade-off: classic tokens are visible across every repo your GitHub user can access — including personal repos and other orgs. Fine-grained tokens are scoped to one org's selected repos, which is meaningfully safer if the token leaks.
 
