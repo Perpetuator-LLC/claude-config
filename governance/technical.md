@@ -94,16 +94,84 @@ versions.
 
 ---
 
-## Git & worktrees
-- **Branches: descriptive `type/slug`** (`fix/podcast-feed-cache`), never `claude/<random>`.
-- **Commit or push only when asked.** End commit messages with the configured `Co-Authored-By` and
-  PR bodies with the Claude Code attribution line.
-- **Parallel-worktree workflow:** the main worktree (`.git` is a dir) is the human's testing
-  stage — **read-only, never edit/commit there**; agents work in linked worktrees
-  (`<repo>/.claude/worktrees/<name>`). Use `git wt` (`status` / `reap`) to manage them. Hand off for
-  human testing with a **TEST THIS** block.
-- **Never bypass safety checks** (`--no-verify`); ask before destructive/irreversible git ops
-  (force-push, hard reset, amending published commits, deleting branches you didn't create).
+## Developer flow — feature branch → integration branch → one PR
+Default: work locally on feature branches, integrate into this machine's standing integration branch,
+push ONLY that. One remote branch → one CI build → one PR the human reviews once. No per-feature
+remote branches, no PR-per-branch churn, no rebase cascade after every merge to main. *(Resident
+summary lives in the global `CLAUDE.md`; the full mechanics are here.)*
+
+- **Branch: descriptive `type/slug`** (`fix/podcast-feed-cache`), never `claude/<random>`. Work,
+  test, commit there; feature branches stay LOCAL by default (push one to remote only as end-of-day
+  BACKUP — never its own PR; delete after it lands).
+- **Integration branch = `merge/${USER}-${MACHINE}`** — exactly
+  `merge/$(whoami)-$(hostname -s | tr 'A-Z' 'a-z')` (this Mac: `merge/nik-mac`). Compute it, don't
+  improvise (no `merge`, no `merge/nik`, no `integration/*`, no suffixes). It holds the integrated
+  work of THIS agent-context; merges into it happen LOCALLY, so never share one across users/machines.
+  Collaborated / multi-party work uses the classic feature-branch→PR flow instead. Legacy plain
+  `merge` branch → migrate delete-before-create (`git branch -m merge merge/<agent>` →
+  `git push origin --delete merge` → `git push -u origin merge/<agent>`).
+- **Integrate + keep ONE open PR:** when a feature branch is done, switch to the integration branch
+  (create from `origin/<default>` if absent), rebase-merge the feature branch in, resolve conflicts
+  yourself. Push ONLY the integration branch and keep ONE open **classic** PR → default. A merged PR
+  can't reopen — each review cycle is a fresh PR; WITHIN a cycle plain `git push origin merge/<agent>`
+  updates the open PR. OPEN the PR yourself (gitea/gh/API); hand over a one-click compare URL only when
+  the PR tool is unavailable, and say why. **NEVER AGit (`refs/for/…`) for the integration branch**
+  (retired 2026-07-04, cc-be #46/#47 — virtual head 404s, matches CLOSED PRs, mints duplicates).
+- **After the human merges:** the integration branch has DRIFTED (rebase/squash left old SHAs whose
+  content is now in main). REFRESH it — never route around it: `git reset --hard origin/<default>`,
+  then cherry-pick back ONLY still-unmerged commits (`git cherry -v origin/<default>
+  origin/merge/<agent>`: `-`=already in main, drop; `+`=keep, incl. other sessions'), then
+  `--force-with-lease`. "The shared branch looks messy" is NOT a reason to bypass it with a side PR —
+  that's exactly the state this refresh cleans, and it must be cleaned ON the branch.
+- **Multi-session discipline:** when sessions share a repo, none does code work in the root or
+  integration checkout — each works in its OWN linked worktree; the integration checkout is touched
+  only for the atomic verify-branch → merge → push, then returned clean. A conflict you didn't create
+  → flag + STOP; a conflict during your own merge → complete it (latest-wins toward main for files you
+  didn't author).
+- **Integration ops run in a STANDING, fully-provisioned checkout** (the root, or one dedicated
+  `<repo>-merge` worktree with venv/deps/`.env`/inventories) — merging + pushing fire the repo's full
+  hook gauntlet, which needs the environment; ad-hoc worktrees yield cascading bogus failures
+  (missing venv/`.env`/`logs/`). Ad-hoc worktrees are for CODE CHANGES only.
+- **Branch in the root checkout when it's free**; if it's dirty with the human's work, use a linked
+  worktree and say why. Manage worktrees with `git wt` (`status` / `reap`); never
+  `worktree remove --force` / `branch -D` something you didn't create without checking `git wt status`.
+  Hand off human-only verification with a **TEST THIS** block.
+- **Commit or push only when asked.** End commit messages with the configured `Co-Authored-By` and PR
+  bodies with the Claude Code attribution. Never bypass safety checks (`--no-verify`); ask before
+  destructive/irreversible git ops (force-push, hard reset, amending published commits, deleting
+  branches you didn't create).
+- **Condense & consolidate**: few well-scoped commits over many micro-commits; one branch/PR per
+  related change. **Fix bugs you find while working** (regression test, same/sibling commit,
+  documented) — defer only if it balloons the diff. **Finish before hand-over**: test, validate,
+  security-scan what you touched, push, present merge-ready.
+- **Script the recipe on the second hand-over**: any multi-step ops/deploy sequence handed over twice
+  becomes a committed script (all flags baked in — e.g. a service `deploy.sh`).
+- **Prompt & host-name standard**: every credential prompt (script AND hand-off `🔑 PROMPTS` line)
+  says WHAT / WHERE-from / WHICH machine-or-service. Scripts source the format from
+  `${CLAUDE_LIB:-$HOME/.claude/lib}/prompt.sh` (`prompt_secret` / `prompt_plain`). Machine NAMES are
+  engagement DATA with one source of truth — the project's ansible inventory — never hardcoded
+  (`resolve_host <group>`). Placement: universal tooling → `claude-config`; engagement data
+  (hostnames, registry, custody) → the engagement; secret VALUES → the store + off-box.
+- **Session pre-flight**: an operator script needing a specific auth ROLE verifies the ACTIVE session
+  IS that role BEFORE the work and remediates, rather than failing deep in a run (`ensure_bao_role
+  <role>` in `prompt.sh`). Generalizes to any scoped credential: detect → remediate → proceed, up front.
+
+## IaC-first — production & infra changes (2026-07-14 standard)
+**Production state is only touched through committed, testable, environment-loaded surfaces — never
+ad-hoc SQL/shell typed on a box or handed over.** Every read or write against a prod/infra system
+goes through, in order: (1) the app's own **committed command surface** (management command, CLI
+subcommand, rake task) run under the standard runtime env-injection (the OpenBao exec-injector) so
+secrets load normally; (2) a **committed script/playbook** (ansible/tofu/repo `scripts/`), reviewed,
+versioned, re-runnable; (3) only for genuine one-time break-glass, a hand-over block — and then the
+SECOND occurrence gets scripted and the first gets an issue to backfill the command surface.
+Schema/data changes belong in migrations. Handing the human an ad-hoc mutation of a live host (inline
+`python`/`sed` heredocs against live files, `docker` CLI state changes, console clicks, hand-edited
+on-box configs) is a VIOLATION even when it "works" and even for a one-off — it creates drift the IaC
+can't see and a step no audit can replay. If the IaC doesn't exist yet, WRITING it (playbook/role/
+script, committed and merged) IS the task; then hand over its one-line invocation. **Litmus:** if the
+recipe contains inline SQL or a `python -c` against a prod service, stop and write the command/script
+instead. Verification counts as interaction — "check how many rows are expired" is a management
+command, not a paste-block of SQL. Ad-hoc commands are for read-only diagnosis only.
 
 ---
 
@@ -149,6 +217,26 @@ volume, `up` at the ref. Two hard rules paid for in a prod outage (cc-be 2026-07
   broke every first push while two agents worked the repo) — derive per-checkout names.
 - **Commands handed to the human run in THEIR shell** (zsh here): `read -rsp` is
   bash-only; zsh is `read -s 'VAR?prompt'`. A silent mismatch wrote empty secrets twice.
+- **Wrong-venv prompt that survives everything** (fixed hooks, fresh shells, `cd`): suspect
+  the VENV ITSELF — a `.venv` created/copied under another project hardcodes that project's
+  path in its `activate`, so poetry treats the foreign env as authoritative (`poetry run`
+  fails "Current Python version is not allowed"). Diagnose: `grep <other-project>
+  <repo>/.venv/bin/activate`. Fix: `rm -rf .venv && env -u VIRTUAL_ENV poetry install`.
+- **Non-ASCII after `$VAR` in `.sh`**: old bash folds the leading byte into the name →
+  `<var>?: unbound variable` under `set -u`. Worst landmine is `…` right after `$VAR`. Use
+  `$PATH...` or `$PATH …` (ASCII gap), not `$PATH…`.
+- **SSH + single-quoted heredoc**: the body expands *remotely*. Don't smuggle locals via a
+  `'"$VAR"'` break-out — pass locals as argv to `bash -s`, secrets via stdin (`printf '%s\n'
+  "$SECRET" | ssh "$HOST" bash -s "$LOCAL" <<'REMOTE' … read -r A … REMOTE`).
+- **NEVER pipe secrets into `ssh <host> 'sudo …'`** — without a tty, sudo reads its password
+  from the SAME stdin and silently EATS the first secret line (probes.env landed empty while
+  every check passed, 2026-07-12). Two phases: (1) pipe secrets over ssh stdin into a
+  user-owned 0600 STAGING file; (2) separate `ssh -t host 'sudo …'` merges staging into the
+  root-owned target, shreds staging, and **verifies the keys are non-empty** before success.
+- **Multi-orphan rotation**: a rotation that crashed mid-flow may have minted a new key before
+  dying — an orphan to also revoke (fingerprint: recent key, `last_used_on` = the failed run's
+  minute, template-matching description). Delete a list of stale IDs in one pass; treat 404 as
+  success so re-runs are safe.
 
 ---
 
