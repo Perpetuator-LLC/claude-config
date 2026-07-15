@@ -132,6 +132,18 @@ Custom Instructions              Project CLAUDE.md
 
 ## Customization
 
+### Rule-Authoring Principle (2026-07-15)
+
+Global rules are written **tool-agnostic**: state the *pattern* (the layer, the
+invariant, the failure it prevents) and let each engagement bind its own tool
+implementations. A rule that names one tool silently stops binding the moment a
+different engagement uses another (the Ask-Once/OpenBao rule failed to fire on a
+WeOwn/Infisical task until it was generalized to "the engagement's secret store").
+Concrete tool forms belong in the rule as *examples per engagement*, never as the
+rule's scope. Litmus when editing `global/CLAUDE.md`: "would this sentence still
+bind if the team swapped this tool for its competitor?" — if not, lift the pattern
+out and demote the tool to an example.
+
 ### Personal Preferences
 
 Edit `~/.claude/CLAUDE.local.md`. The shared base `~/.claude/CLAUDE.md` is a symlink into this repo and is auto-updated by `git pull` — don't edit it directly. The local file is `@import`-ed at the bottom of the shared base, so anything you put there is appended (and overrides on conflict). Examples of what to add here: preferred stack, machine-specific paths, project-specific rules, or guidance that should never propagate to other machines.
