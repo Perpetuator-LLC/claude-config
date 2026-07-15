@@ -1,21 +1,27 @@
 #!/bin/bash
-# Hook: SessionEnd — Auto-clean Claude-managed worktrees
+# Hook: SessionEnd — reconcile the worktree this session ran in.
 #
-# When a Claude Code session ends, the worktree it ran in (under
-# <project>/.claude/worktrees/<name>) stays on disk forever unless removed
-# explicitly. This hook checks whether that worktree is clean and, if so,
-# removes it. If anything is uncommitted or unpushed, it logs the details
-# to ~/.claude/worktree-needs-attention.log and leaves the worktree alone.
+# A Claude session usually runs in a linked git worktree. When the session
+# ends, that worktree (and its branch) would otherwise pile up forever. This
+# hook inspects ONLY the worktree the session ran in and:
 #
-# Disable per-session by setting CLAUDE_WORKTREE_AUTOCLEAN=0.
+#   * Ephemeral worktree (under <repo>/.claude/worktrees/<name>):
+#       - clean  → remove the worktree; if its branch is merged into the
+#                  default branch, delete the branch too. Logged.
+#       - dirty/unpushed → leave it, log details, desktop-notify.
+#   * Sibling / hand-made worktree (anywhere else):
+#       - NEVER auto-removed (you may have it open in your IDE).
+#       - clean + merged → noted in the log as reapable via `wt reap`.
+#       - dirty/unpushed → log details, desktop-notify.
+#   * Main worktree → nothing to do.
+#
+# Bulk cleanup across ALL worktrees is the job of `wt reap` (on demand), not
+# this hook. Disable this hook per-session with CLAUDE_WORKTREE_AUTOCLEAN=0.
 
-# Honor opt-out
-if [[ "${CLAUDE_WORKTREE_AUTOCLEAN:-1}" == "0" ]]; then
-  exit 0
-fi
+[[ "${CLAUDE_WORKTREE_AUTOCLEAN:-1}" == "0" ]] && exit 0
 
-# Resolve worktree path. Claude Code passes a JSON object on stdin for
-# SessionEnd hooks containing `.cwd`; fall back to $PWD if unavailable.
+# --- Resolve the worktree path. SessionEnd hooks receive JSON on stdin with
+#     a `.cwd` field; fall back to $PWD. ---
 worktree_path=""
 if [[ ! -t 0 ]]; then
   input=$(cat 2>/dev/null || true)
@@ -24,73 +30,115 @@ if [[ ! -t 0 ]]; then
   fi
 fi
 worktree_path="${worktree_path:-$PWD}"
-
-# Only act on Claude-managed worktrees
-case "$worktree_path" in
-  */.claude/worktrees/*) ;;
-  *) exit 0 ;;
-esac
-
-# Parent repo is everything before "/.claude/worktrees/..."
-parent_repo="${worktree_path%/.claude/worktrees/*}"
-
-# Sanity
 [[ -d "$worktree_path" ]] || exit 0
-git -C "$parent_repo" rev-parse --git-dir >/dev/null 2>&1 || exit 0
 
-# Inspect cleanliness from inside the worktree
-cd "$worktree_path" || exit 0
+cd "$worktree_path" 2>/dev/null || exit 0
+git rev-parse --git-dir >/dev/null 2>&1 || exit 0
 
-uncommitted=$(git status --porcelain 2>/dev/null)
+# --- Is this a linked worktree? (main worktree: git-dir == git-common-dir) ---
+git_dir=$(git rev-parse --git-dir 2>/dev/null)
+common_dir=$(git rev-parse --git-common-dir 2>/dev/null)
+[[ "$git_dir" == "$common_dir" ]] && exit 0    # main worktree — nothing to clean
+
+# --- Main repo = parent of the shared .git dir (works for any worktree layout) ---
+case "$common_dir" in /*) ;; *) common_dir="$worktree_path/$common_dir" ;; esac
+parent_repo=$(cd "$(dirname "$common_dir")" 2>/dev/null && pwd)
+[[ -n "$parent_repo" && -d "$parent_repo" ]] || exit 0
+
+# --- Gather state (while still inside the worktree) ---
 branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+[[ "$branch" == "HEAD" ]] && branch=""          # detached
+uncommitted=$(git status --porcelain 2>/dev/null)
+
+# Default branch + "is this branch merged into it?"
+def=$(git symbolic-ref --quiet refs/remotes/origin/HEAD 2>/dev/null); def="${def#refs/remotes/origin/}"
+if [[ -z "$def" ]]; then
+  for b in main master trunk; do
+    git show-ref --verify --quiet "refs/heads/$b" && { def="$b"; break; }
+  done
+fi
+base="$def"
+git show-ref --verify --quiet "refs/remotes/origin/$def" && base="origin/$def"
 
 unpushed=""
-if git rev-parse "@{u}" >/dev/null 2>&1; then
-  unpushed=$(git log @{u}..HEAD --oneline 2>/dev/null)
-else
-  unpushed="(no upstream configured)"
+if [[ -n "$branch" ]]; then
+  if git rev-parse "@{u}" >/dev/null 2>&1; then
+    unpushed=$(git log "@{u}..HEAD" --oneline 2>/dev/null)
+  elif [[ -n "$base" ]]; then
+    # No upstream: commits not on the default base count as unpushed —
+    # otherwise a local-only branch with real work reads as clean and the
+    # only checkout gets removed (Copilot review, PR #2).
+    unpushed=$(git log "$base..HEAD" --oneline 2>/dev/null)
+  fi
+fi
+merged=0
+if [[ -n "$branch" && -n "$base" ]] && git merge-base --is-ancestor HEAD "$base" 2>/dev/null; then
+  merged=1
 fi
 
+is_clean=0
+[[ -z "$uncommitted" && -z "$unpushed" ]] && is_clean=1
+
+case "$worktree_path" in */.claude/worktrees/*) ephemeral=1 ;; *) ephemeral=0 ;; esac
+
+# --- Logging + notification helpers ---
 ts="[$(date '+%Y-%m-%d %H:%M:%S')]"
-log_dir="$HOME/.claude"
+log_dir="$HOME/.claude"; mkdir -p "$log_dir"
 clean_log="$log_dir/worktree-cleanup.log"
 dirty_log="$log_dir/worktree-needs-attention.log"
-mkdir -p "$log_dir"
 
-if [[ -z "$uncommitted" && -z "$unpushed" ]]; then
-  # CLEAN — auto-remove. Must cd out of worktree first.
-  cd "$parent_repo" || exit 0
-  if git worktree remove --force "$worktree_path" 2>/dev/null; then
-    echo "$ts removed clean worktree: $worktree_path (branch: $branch)" >> "$clean_log"
-  else
-    echo "$ts FAILED to remove worktree: $worktree_path (branch: $branch)" >> "$clean_log"
+notify() {  # $1=message $2=title
+  if [[ "$(uname)" == "Darwin" ]]; then
+    osascript -e "display notification \"$1\" with title \"${2:-Claude Code}\"" 2>/dev/null
+  elif command -v notify-send >/dev/null 2>&1; then
+    notify-send "${2:-Claude Code}" "$1" 2>/dev/null
   fi
-  exit 0
-fi
+}
 
-# DIRTY — leave it, log, notify
-{
-  echo "$ts ===================="
-  echo "$ts worktree: $worktree_path"
-  echo "$ts branch:   $branch"
-  if [[ -n "$uncommitted" ]]; then
-    echo "$ts uncommitted changes:"
-    echo "$uncommitted" | sed "s|^|$ts   |"
-  fi
-  if [[ -n "$unpushed" ]]; then
-    echo "$ts unpushed commits (on branch $branch):"
-    echo "$unpushed" | sed "s|^|$ts   |"
-  fi
-  escaped_worktree_path=$(printf '%q' "$worktree_path")
-  echo "$ts to inspect:   cd $escaped_worktree_path"
-  echo "$ts to discard:   git worktree remove --force $escaped_worktree_path"
-} >> "$dirty_log"
+log_dirty() {
+  {
+    echo "$ts ===================="
+    echo "$ts worktree: $worktree_path"
+    echo "$ts branch:   ${branch:-(detached)}"
+    if [[ -n "$uncommitted" ]]; then
+      echo "$ts uncommitted changes:"; echo "$uncommitted" | sed "s|^|$ts   |"
+    fi
+    if [[ -n "$unpushed" ]]; then
+      echo "$ts unpushed commits:"; echo "$unpushed" | sed "s|^|$ts   |"
+    fi
+    echo "$ts inspect:  cd $worktree_path"
+    echo "$ts discard:  git -C $parent_repo worktree remove --force $worktree_path"
+  } >> "$dirty_log"
+}
 
 basename_wt=$(basename "$worktree_path")
-if [[ "$(uname)" == "Darwin" ]]; then
-  osascript -e "display notification \"Worktree '$basename_wt' has uncommitted work — see ~/.claude/worktree-needs-attention.log\" with title \"Claude Code: cleanup deferred\"" 2>/dev/null
-elif command -v notify-send >/dev/null 2>&1; then
-  notify-send "Claude Code: cleanup deferred" "Worktree '$basename_wt' has uncommitted work — see ~/.claude/worktree-needs-attention.log" 2>/dev/null
+
+if [[ "$ephemeral" -eq 1 ]]; then
+  if [[ "$is_clean" -eq 1 ]]; then
+    # CLEAN ephemeral worktree — remove it (and its merged branch). cd out first.
+    cd "$parent_repo" || exit 0
+    if git worktree remove --force "$worktree_path" 2>/dev/null; then
+      msg="removed clean worktree: $worktree_path (branch: ${branch:-detached})"
+      if [[ -n "$branch" && "$branch" != "$def" && "$merged" -eq 1 ]]; then
+        # merged into $base already verified — safe to drop the branch ref
+        git branch -D "$branch" >/dev/null 2>&1 && msg="$msg + deleted merged branch '$branch'"
+      fi
+      echo "$ts $msg" >> "$clean_log"
+    else
+      echo "$ts FAILED to remove worktree: $worktree_path (branch: ${branch:-detached})" >> "$clean_log"
+    fi
+  else
+    log_dirty
+    notify "Worktree '$basename_wt' has uncommitted/unpushed work — see ~/.claude/worktree-needs-attention.log" "Claude Code: cleanup deferred"
+  fi
+else
+  # SIBLING / hand-made worktree — never auto-remove.
+  if [[ "$is_clean" -eq 1 && -n "$branch" && "$merged" -eq 1 ]]; then
+    echo "$ts reapable sibling (not auto-removed): $worktree_path (branch '$branch' merged into $base) — run 'wt reap' to clean" >> "$clean_log"
+  elif [[ "$is_clean" -ne 1 ]]; then
+    log_dirty
+    notify "Sibling worktree '$basename_wt' has uncommitted/unpushed work — see ~/.claude/worktree-needs-attention.log" "Claude Code: worktree needs attention"
+  fi
 fi
 
 exit 0

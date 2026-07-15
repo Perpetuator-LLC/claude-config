@@ -114,6 +114,29 @@ else
   echo "CLAUDE.md already exists — not overwriting"
 fi
 
+# --- Seed governance pointers into the other AI surfaces (thin pointers to ~/.claude/governance) ---
+GOV_NOTE="> **Governance.** This repo inherits Nik's Core governance + C-Suite role domains from \`~/.claude/governance/\` (Core constitution: precedence ladder, engagement-layering, G-rules). Domain docs (consult when relevant): \`~/.claude/governance/{technical,security,financial,legal,marketing,operations,product}.md\`. On client work, layer the client's governance per the precedence ladder (human > client deliverable-shape > my governance > core). See CLAUDE.md for project-specific conventions."
+
+if [[ ! -f "AGENTS.md" ]]; then
+  printf '# Agent Instructions — %s\n\n%s\n' "$PROJECT_NAME" "$GOV_NOTE" > AGENTS.md
+  echo "Created AGENTS.md (governance pointer)"
+fi
+if [[ ! -f ".github/copilot-instructions.md" ]]; then
+  mkdir -p .github
+  printf '# %s — Copilot Instructions\n\n%s\n' "$PROJECT_NAME" "$GOV_NOTE" > .github/copilot-instructions.md
+  echo "Created .github/copilot-instructions.md (governance pointer)"
+fi
+if [[ ! -f ".continue/rules/00-governance.md" ]]; then
+  mkdir -p .continue/rules
+  printf '%s\n' "$GOV_NOTE" > .continue/rules/00-governance.md
+  echo "Created .continue/rules/00-governance.md (governance pointer)"
+fi
+if [[ ! -f ".cursor/rules/governance.mdc" ]]; then
+  mkdir -p .cursor/rules
+  printf -- '---\nalwaysApply: true\n---\n\n%s\n' "$GOV_NOTE" > .cursor/rules/governance.mdc
+  echo "Created .cursor/rules/governance.mdc (governance pointer)"
+fi
+
 # --- Create .claude directory ---
 mkdir -p .claude
 

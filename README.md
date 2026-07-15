@@ -71,7 +71,23 @@ Hooks are the mechanism for replicating Copilot's behavioral injection. They fir
 | `PostToolUse[Write\|Edit]` | `post-edit-lint.sh` | After file edits | Auto syntax-check (Python, TS, JS, Ruby, Go, JSON, YAML, shell) |
 | `Stop` | `notify-complete.sh` | Task finishes | Desktop notification (macOS + Linux) |
 | `Stop` | `check-config-repo.sh` | Task finishes | Warns if this config repo has uncommitted changes |
-| `SessionEnd` | `worktree-cleanup.sh` | Session ends | Auto-removes the session's Claude worktree if clean; logs + notifies if it has uncommitted/unpushed work. Disable per-session with `CLAUDE_WORKTREE_AUTOCLEAN=0`. |
+| `SessionEnd` | `worktree-cleanup.sh` | Session ends | Reconciles the worktree the session ran in: removes it if it's a clean ephemeral `.claude/worktrees` checkout (and deletes its branch if merged); leaves dirty/unpushed or hand-made sibling worktrees alone, logging + notifying. Bulk cleanup is `git wt reap`. Disable per-session with `CLAUDE_WORKTREE_AUTOCLEAN=0`. |
+
+## Worktree Helper (`wt`)
+
+Parallel agents each work in their own linked git worktree, while the **main
+worktree stays the human's read-only testing stage** (it's wired to the IDE and
+hot-reloads). `wt` (installed as `git wt`) keeps that fleet manageable:
+
+| Command | What |
+|---------|------|
+| `git wt status` | Board of every worktree: branch, role, ahead/behind default, push state, merged? |
+| `git wt reap --dry-run` | Preview cleanup — changes nothing |
+| `git wt reap [--remote]` | Remove clean **+** merged worktrees and their branches; dirty/unmerged are left alone and listed. `--remote` also deletes the merged branch on origin |
+
+The full agent protocol — taxonomy, the read-only-main rule, the `TEST THIS`
+testing handoff, and branch naming — lives in `global/CLAUDE.md` →
+**Parallel Worktree Workflow**.
 
 ## Agents
 
@@ -208,7 +224,9 @@ claude-config/
 │   ├── session-start.sh          # Workspace context generator
 │   ├── notify-complete.sh        # Desktop notification
 │   ├── check-config-repo.sh      # Config repo status check
-│   └── worktree-cleanup.sh       # Auto-clean Claude worktrees on SessionEnd
+│   └── worktree-cleanup.sh       # Reconcile session worktree on SessionEnd (+ delete merged branch)
+├── bin/
+│   └── wt                        # Worktree board + safe reconcile (installed as `git wt`)
 ├── templates/
 │   └── project-CLAUDE.md        # Project CLAUDE.md template
 └── docs/
