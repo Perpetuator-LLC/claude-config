@@ -77,10 +77,12 @@ set -euo pipefail
 : "${FOO_API_TOKEN:?Set FOO_API_TOKEN (fetch from <where>: <how>)}"
 ```
 ```bash
-# one-shot admin: prompt (never argv), send to a remote container without hitting argv
+# one-shot admin: prompt (never argv); stream over ssh stdin → remote env → container via
+# `-e NAME` (name only = env passthrough — the VALUE never lands on any argv / ps / audit line;
+# `-e VAR="$T"` would put it back on the docker exec command line, so never do that)
 read -rs "TOKEN?Paste TOKEN: " 2>/dev/null || read -rsp "Paste TOKEN: " TOKEN; echo
 trap 'unset TOKEN 2>/dev/null || true' EXIT
-printf '%s\n' "$TOKEN" | ssh "$HOST" 'read T; docker exec -i -e TOKEN="$T" container cmd'
+printf '%s\n' "$TOKEN" | ssh "$HOST" 'read T; export T; docker exec -e T container cmd'
 ```
 Multi-step credential ceremonies (generate-root, token mints) never have the human copy-paste an
 intermediate: capture every nonce/OTP/encoded/decoded value into shell variables via command

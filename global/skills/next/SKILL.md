@@ -1,6 +1,6 @@
 ---
 name: next
-description: Invoke when the user's message contains #next (alone or with a hint). Next-Step Protocol — ORIENT on the plan guiding THIS thread and advance the true next step, rather than reacting to the literal last message. Locate the guiding plan, find the first not-yet-done step, state it, then build the agent-buildable part and hand over only the genuinely human-gated part. Never answer #next by asking the user what's next.
+description: "Invoke when the user's message contains #next (alone or with a hint). Next-Step Protocol — ORIENT on the plan guiding THIS thread and advance the true next step, rather than reacting to the literal last message. Locate the guiding plan, find the first not-yet-done step, state it, then build the agent-buildable part and hand over only the genuinely human-gated part. Never answer #next by asking the user what's next."
 ---
 
 # Next-Step Protocol — `#next`

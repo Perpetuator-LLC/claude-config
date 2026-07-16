@@ -1,6 +1,6 @@
 ---
 name: badagent
-description: Invoke when the user's message contains #badagent (alone or with a hint). Self-Correction Protocol — diagnose what the agent did wrong THIS session and durably fix the rule that failed to bind (edit + commit the config/governance/memory). Never ask the user what went wrong; that is the agent's job to diagnose.
+description: "Invoke when the user's message contains #badagent (alone or with a hint). Self-Correction Protocol — diagnose what the agent did wrong THIS session and durably fix the rule that failed to bind (edit + commit the config/governance/memory). Never ask the user what went wrong; that is the agent's job to diagnose."
 ---
 
 # Self-Correction Protocol — `#badagent`

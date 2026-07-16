@@ -1,6 +1,6 @@
 ---
 name: session-summary
-description: Invoke when the user's message contains #SessionSummary (typically a long thread has degraded and they want a clean-context continuation). Session-Export Protocol — produce a complete hand-off doc a FRESH agent can execute without this session: inventory the incomplete work, fence the settled decisions, record what can't be inferred from the repo, and write it as a committed repo hand-off doc with a paste-ready kickoff block. The sibling of #capture, but for work STATE instead of knowledge.
+description: "Invoke when the user's message contains #SessionSummary (typically a long thread has degraded and they want a clean-context continuation). Session-Export Protocol — produce a complete hand-off doc a FRESH agent can execute without this session: inventory the incomplete work, fence the settled decisions, record what can't be inferred from the repo, and write it as a committed repo hand-off doc with a paste-ready kickoff block. The sibling of #capture, but for work STATE instead of knowledge."
 ---
 
 # Session-Export Protocol — `#SessionSummary`

@@ -1,6 +1,6 @@
 ---
 name: capture
-description: Invoke when the user's message contains #capture (alone or with a hint narrowing the topic). Knowledge-Capture Protocol — distill the durable lessons (concepts + why, not the transcript) from THIS session and route each to the right canonical home (config / vault / repo docs / auto-memory), correcting any note the session proved stale. The sibling of #badagent, but for knowledge instead of behavior.
+description: "Invoke when the user's message contains #capture (alone or with a hint narrowing the topic). Knowledge-Capture Protocol — distill the durable lessons (concepts + why, not the transcript) from THIS session and route each to the right canonical home (config / vault / repo docs / auto-memory), correcting any note the session proved stale. The sibling of #badagent, but for knowledge instead of behavior."
 ---
 
 # Knowledge-Capture Protocol — `#capture`
