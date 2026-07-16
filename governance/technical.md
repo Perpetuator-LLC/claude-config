@@ -91,6 +91,13 @@ versions.
   If you're doing it manually, stop and script it, commit the script, then run it.
 - **Decompose the gateway / keep services thin** — namespaced tools (`{service}.{tool}`); a thin
   aggregator over per-service servers, not a monolith.
+- **Interactive credential prompts name themselves.** Any playbook/script that will prompt a human
+  for a credential announces WHICH one (account + host, e.g. `🔑 sudo (BECOME) password for
+  sooth@lestrange`) — never a bare `BECOME password:`/`Password:`. Ansible: a `vars_prompt` for
+  `ansible_become_password` on the play (run WITHOUT `--ask-become-pass`, which would double-prompt);
+  the prompt text cannot template inventory vars (rendered pre-binding), so the author writes the
+  literal account@host. Shell: `read -rs` prompts carry the same naming. Reference:
+  mcp `playbooks/posthog.yml` (2026-07-16).
 
 ---
 
