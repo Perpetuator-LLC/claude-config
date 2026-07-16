@@ -47,6 +47,15 @@ outcome; you continue without ever seeing the secret. If a secret enters a trans
 and recommend rotation. Tools that touch customer data return **aggregate data + opaque IDs only** —
 never name/email/phone/PII into an LLM context window.
 
+**Gitignored env-config files are in scope** (2026-07-14 — read `environment.ts` wholesale chasing a
+type error; it carried plaintext dev passwords into context). A repo's local runtime-config file
+(`environment.ts`, `*.local.*`, anything gitignored because it may hold credentials) is a "config
+file" under this ban even when it doesn't look like `.env`. Never `cat`/Read one whole — answer the
+question with a targeted probe that cannot emit values (`grep -c '^  POSTHOG_KEY:' file`,
+`grep -o 'FIELD_NAME' file`); to ADD fields, use a blind in-place edit (`sed`/`perl -pi`) keyed on
+structure, not by reading first. Copying such a file (`cp` between checkouts) is fine — displaying it
+is not.
+
 ---
 
 ## Secrets in code (mandatory)
@@ -61,6 +70,58 @@ Keycloak client secret; at every startup the service does client-credentials →
 OpenBao login → fetch runtime secrets → export → exec. No long-lived secrets on disk beyond one
 bootstrap secret; bouncing re-fetches fresh (rotation without rebuild). Never commit `.env`; always
 `--exclude .env` in rsync.
+
+**Standard patterns** (never a secret on argv):
+```bash
+set -euo pipefail
+: "${FOO_API_TOKEN:?Set FOO_API_TOKEN (fetch from <where>: <how>)}"
+```
+```bash
+# one-shot admin: prompt (never argv); stream over ssh stdin → remote env → container via
+# `-e NAME` (name only = env passthrough — the VALUE never lands on any argv / ps / audit line;
+# `-e VAR="$T"` would put it back on the docker exec command line, so never do that)
+read -rs "TOKEN?Paste TOKEN: " 2>/dev/null || read -rsp "Paste TOKEN: " TOKEN; echo
+trap 'unset TOKEN 2>/dev/null || true' EXIT
+printf '%s\n' "$TOKEN" | ssh "$HOST" 'read T; export T; docker exec -e T container cmd'
+```
+Multi-step credential ceremonies (generate-root, token mints) never have the human copy-paste an
+intermediate: capture every nonce/OTP/encoded/decoded value into shell variables via command
+substitution (`-format=json` + `jq -r`); the only typed secret is a hidden prompt (reference: mcp
+`docs/ops-runbooks/openbao-operator-auth.md` break-glass ceremony).
+
+---
+
+## Ask-once provisioning (2026-07-12 standard)
+A provisioning/setup script that collects credentials interactively must be **re-runnable without
+re-collecting them** — reruns are the NORM (scripts fail mid-flow, deploys iterate). Pattern:
+**store-first, prompt-fallback, write-back** — (1) try the secret store first
+(`secret/<engagement>/<purpose>`); (2) prompt ONLY for values the store doesn't have; (3) after the
+script's own end-to-end verification passes, write collected values back so the next run is
+zero-prompt. The store is the memory; the prompt is the one-time capture.
+
+**This binds the AGENT, not just scripts: asking the human for an API token is the LAST resort, and
+doing it twice for the same service is a violation.** Before any token prompt:
+1. **Check the store** — the agent runs under the human's active login and consumes tokens IN-PROCESS
+   via command substitution (`TOKEN="$(bao kv get -field=… …)" cmd`; value never printed, never in
+   context, never on argv). The Secret Ban forbids MY *context* seeing values — it does **not** forbid
+   command substitution in the human's shell or a script. Handing the human "fetch X from the store's
+   UI and paste it" when a logged-in CLI can consume it in-process violates THIS rule (caught 2026-07-15:
+   sent Nik to the Infisical UI for `DO_PAT` while `infisical secrets get --plain` was available).
+1a. **Store-agnostic:** "the store" is whichever secret manager the ENGAGEMENT uses — the pattern
+   transfers. OpenBao is Perpetuator-internal; WeOwn uses Infisical, where the in-process form is
+   `VAR="$(infisical secrets get KEY --projectId=<id> --env=<env> --plain)" cmd` under the human's
+   `infisical login` session.
+1b. **Empty fields ≠ absent secret** (2026-07-15): a blank latest version usually means a FAILED
+   WRITE, not a missing credential — before prompting, list the subtree AND walk version history for
+   the newest non-empty version, and consume that in-process. Concrete OpenBao commands (raw-path
+   forms so they work under scoped tokens too): list keys `bao list secret/metadata/<p>`, version map
+   `bao read secret/metadata/<p>`, read a version `bao read "secret/data/<p>?version=N"` (the `bao kv`
+   conveniences preflight a UI mount path scoped tokens are denied).
+2. **Verify scope** with a harmless read before using — a stored-but-stale token falls through to (3).
+3. **ONE Secure-Handoff mint** that stores into the store in the same block (`read -s` →
+   `bao kv put/patch`) and is then consumed from the store, so that service never prompts again. New
+   tokens always land in the store at mint time — a token that only lives in a shell/history/CI var is
+   a bug.
 
 ---
 

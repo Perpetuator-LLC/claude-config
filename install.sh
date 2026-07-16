@@ -25,11 +25,18 @@ if [[ -d "$CLAUDE_DIR/agents" && ! -L "$CLAUDE_DIR/agents" ]]; then
     mv "$CLAUDE_DIR/agents" "$CLAUDE_DIR/agents.bak"
 fi
 
-# --- Symlink settings and agents (auto-update via git pull) ---
+if [[ -d "$CLAUDE_DIR/skills" && ! -L "$CLAUDE_DIR/skills" ]]; then
+    echo "Backing up existing skills/ → skills.bak/"
+    mv "$CLAUDE_DIR/skills" "$CLAUDE_DIR/skills.bak"
+fi
+
+# --- Symlink settings, agents, and skills (auto-update via git pull) ---
 # Remove existing symlinks first — ln -sf on a dir symlink places the link *inside* the dir
 ln -sf "$REPO_DIR/global/settings.json" "$CLAUDE_DIR/settings.json"
 rm -f "$CLAUDE_DIR/agents"
 ln -s "$REPO_DIR/global/agents" "$CLAUDE_DIR/agents"
+rm -f "$CLAUDE_DIR/skills"
+ln -s "$REPO_DIR/global/skills" "$CLAUDE_DIR/skills"
 
 # --- Symlink governance/ (C-Suite role-domain docs; Core is @imported by global/CLAUDE.md) ---
 rm -f "$CLAUDE_DIR/governance"
@@ -168,6 +175,7 @@ echo "  Symlinked (auto-update via git pull):"
 echo "    ~/.claude/CLAUDE.md     → global/CLAUDE.md"
 echo "    ~/.claude/settings.json → global/settings.json"
 echo "    ~/.claude/agents/       → global/agents/"
+echo "    ~/.claude/skills/       → global/skills/  (invoked on demand via #tags or /slash-commands)"
 echo "    ~/.claude/governance/   → governance/  (Core @imported; domains on demand)"
 echo ""
 echo "  Hooks (symlinked):"
