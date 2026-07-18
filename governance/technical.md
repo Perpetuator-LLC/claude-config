@@ -91,6 +91,13 @@ versions.
   If you're doing it manually, stop and script it, commit the script, then run it.
 - **Decompose the gateway / keep services thin** — namespaced tools (`{service}.{tool}`); a thin
   aggregator over per-service servers, not a monolith.
+- **Lifecycle check before adoption — no EOL components in new infra.** Before introducing ANY
+  component (image, library, collector, proxy), verify its lifecycle status AS OF TODAY (EOL date,
+  deprecation, named successor) — vendor docs/release notes, not memory; training-data familiarity
+  is a trailing indicator (caught 2026-07-18: Promtail was wired into new log shipping four months
+  after its EOL; Grafana Alloy was the successor). EOL/deprecated components never enter new
+  builds; discovering one already live creates a migration ticket in the same session. The hygiene
+  protocol's component-lifecycle reconciler audits the estate for aging components.
 - **Interactive credential prompts name themselves.** Any playbook/script that will prompt a human
   for a credential announces WHICH one (account + host, e.g. `🔑 sudo (BECOME) password for
   sooth@lestrange`) — never a bare `BECOME password:`/`Password:`. Ansible: a `vars_prompt` for
