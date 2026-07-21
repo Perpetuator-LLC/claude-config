@@ -34,6 +34,20 @@ Starting an initiative = define its goal as a **SMART checkbox list** (refine un
 checkable). New project → **auto-scaffold the vault folder + a matching PM project** from template;
 confirm only the irreversible/ambiguous bits. Record the PM project id in the State doc.
 
+## Ticket due-diligence (route-before-create for work items)
+G11 applies to tickets/issues exactly as to documents (added 2026-07-20 — Nik: every ticket
+creates ongoing carrying cost; spend the diligence up front):
+- **Before creating ANY ticket** (Gitea issue, Tuleap WI, PM item): list the target queue's open
+  items — and recent closed when the topic smells recently-worked — and match by **goal, not
+  wording** ("ship logs to Loki" ≡ "promtail on the app boxes").
+- **Match found** → comment the new context onto the existing ticket (re-label/re-title if scope
+  grew). **Subset** → checklist item on the broader ticket. **Genuinely new** → create, naming in
+  the body which adjacent tickets were checked and why this isn't them.
+- **Backlog sweeps**: N candidate items ≠ N new tickets — route each against the existing queue
+  first. Duplicate found later → close-as-dup immediately with a verified pointer, don't let twins
+  accumulate work.
+- Mechanics for Gitea live in the `/ticket` skill (dedupe step is mandatory there).
+
 ## People-ops
 - **Contributor record = canonical identity** (assign tickets to the contributor, link a real
   account later — zero re-assignment churn).
