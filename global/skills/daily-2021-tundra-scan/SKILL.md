@@ -1,0 +1,33 @@
+---
+name: daily-2021-tundra-scan
+description: Every 3 days at 6am: scan for low-mileage 2021 Toyota Tundra CrewMax near Denver (80520); writes a dated report, updates the rolling price-trend tracker (3mo/12mo $/1k-mi per trim, local vs ship-in), surfaces the best find and any below-trend bargains.
+---
+
+You are running Nik's automated daily 2021 Toyota Tundra deal-scan. This is for his hunting/overland build truck. Run it fresh each time (you have no memory of prior runs except the files on disk).
+
+CONTEXT FILES — read these first:
+- Criteria: /Users/nik/projects/notes/Nik/Entertainment/Hunting/Truck Buying Requirements.md
+- Newest prior scan to diff against: the most recently dated file in /Users/nik/projects/notes/Nik/Entertainment/Hunting/ named "Tundra Daily Scan *.md" or "Tundra Listings *.md". Read the newest one for the prior VIN/price set.
+- Build context: /Users/nik/projects/notes/Nik/Entertainment/Hunting/Truck.md — Nik builds his own truck, so do NOT recommend a TRD Pro at a premium.
+- Price-trend tracker lives in /Users/nik/projects/notes/Nik/Entertainment/Hunting/Tundra Tracker/ : price_engine.py (stdlib Python, no install), listings_db.json (ENGINE-MANAGED — never hand-edit), data/<date>.json (one per-scan input file), Price Trends.md (GENERATED dashboard). See its README.md.
+
+CRITERIA (summary): 2021 Toyota Tundra (he will also consider 2018–2021 — same 5.7L V8), CrewMax cab strongly preferred, 4x4, 5.7L V8, clean title / no major accidents. PRIORITY = LOWEST MILES. Budget target ~$40k (still surface strong finds slightly above). All trims share the identical 5.7L V8; none have a factory locker — never push a TRD Pro for "the locker."
+
+STEPS:
+1. Fetch current inventory with web_fetch from the PLAIN URL https://www.edmunds.com/used-2021-toyota-tundra-denver-co/ and its pages 2 and 3 via ?pagenumber=2 and ?pagenumber=3. IMPORTANT: use ONLY these plain friendly URLs — the sorted / SRP variants (anything with sort= or /inventory/srp.html) time out; do not use them. If a page times out, retry it once, then proceed with whatever pages you got.
+2. From the results, extract every 2021 Toyota Tundra (listings state "X mi away from Denver" and a city). For each capture: trim, cab (CrewMax vs Double Cab), miles, price, city + distance, Edmunds price rating (great/good/fair and the $ above/below market), and VIN. Build each detail link as https://www.edmunds.com/toyota/tundra/2021/vin/<VIN>/ . Tag each as LOCAL (≤~100 mi of Denver/80520) or SHIP-IN (out of area) — keep ship-in in a separate group.
+3. Diff against the newest prior scan file: flag NEW listings (VINs not present before) and PRICE DROPS (same VIN, lower price than before).
+4. Choose the BEST FIND: the lowest-mileage LOCAL CrewMax with a good/great price rating at or near budget. Also explicitly call out any local CrewMax under ~60k miles, and anything brand-new or price-dropped.
+5. Write a dated report to /Users/nik/projects/notes/Nik/Entertainment/Hunting/Tundra Daily Scan <YYYY-MM-DD>.md (today's date). YAML frontmatter: type: listings-snapshot, captured: <date>, source: Edmunds, related: "[[Truck Buying Requirements]]". Structure: (a) "Best find today" callout (trim / miles / price / city / link + one-line why); (b) "What's new vs last scan" (new listings + price drops, or "no changes"); (c) full table of LOCAL CrewMax sorted lowest-miles-first; (d) low-mile ship-in CrewMax; (e) local Double Cab for reference. Match the column format of "Tundra Listings 2026-06-25.md" / "Tundra Daily Scan 2026-06-26.md". Preserve Obsidian [[wiki-links]]. Do NOT hand-write a price-trend section — Step 6 inserts it automatically.
+6. UPDATE THE PRICE-TREND TRACKER (so we can watch prices trend up/down and spot below-trend bargains):
+   a. Write EVERY 2021 listing captured today (local + ship-in + Double Cab) to /Users/nik/projects/notes/Nik/Entertainment/Hunting/Tundra Tracker/data/<YYYY-MM-DD>.json using the Write tool. Schema:
+      {"date":"<YYYY-MM-DD>","source":"Edmunds ...","listings":[ {"date":"<YYYY-MM-DD>","vin":"...","trim":"...","cab":"...","miles":<int>,"price":<int>,"market_delta":<int|null>,"rating":"<great|good|fair|null>","locality":"<local|shipin>","distance_mi":<int|null>,"city":"..."}, ... ]}
+      Field rules: trim ∈ SR5 | Limited | Platinum | 1794 | TRD Pro | SR (exact strings). cab ∈ "CrewMax" | "Double Cab". miles/price integers (no $ or commas). market_delta = Edmunds $ vs market as a signed int (NEGATIVE = below market; null if no rating shown). rating great|good|fair or null. locality "local" if ≤~100 mi else "shipin". distance_mi int or null.
+   b. Run the engine with the workspace bash tool (stdlib only — nothing to install). It is location-independent via a glob on your session mount:
+      cd /sessions/*/mnt/Hunting/"Tundra Tracker" && python3 price_engine.py ingest --json data/<YYYY-MM-DD>.json && python3 price_engine.py inject --scan "../Tundra Daily Scan <YYYY-MM-DD>.md"
+      (If your Shell access section maps the Hunting folder under a different name, adjust the cd accordingly. You can also run `python3 price_engine.py selftest` to confirm it's healthy.) The run is IDEMPOTENT — re-running a date replaces that date's rows. It inserts/refreshes a "## 📈 Price trend" section in today's report and regenerates Price Trends.md.
+   c. The engine computes, per (trim, locality): a 3-month (fast) and 12-month (slow) rolling average of $/1,000-mi (deduped to each VIN's most-recent price, so a long-listed truck counts once), the avg Edmunds below-market delta, the fast-vs-slow trend (↓ softening = cheaper/good-to-buy, ↑ firming, → flat), and flags any current LOCAL truck whose $/1k-mi is under its trim's 3-month average ("cheap right now"). Read the printed output.
+   d. If the engine errors, note it briefly in the report and continue — do not fail the whole run.
+7. End your final summary message with the single best find on the FIRST line, formatted: "Best: <trim> — <miles> mi — $<price> — <city> — <link>", then a 2–3 line digest of what's new vs the last scan, then ONE price-trend line (e.g., "Trend: SR5 local 3-mo $X/1k-mi vs 12-mo $Y (↓/↑/flat); below-trend bargains: <trim/miles/$price>; dashboard [[Price Trends]]").
+
+Do NOT modify Truck.md or the requirements doc. Do NOT hand-edit anything under "Tundra Tracker/" except by adding a per-scan data/<date>.json and running the engine (listings_db.json and Price Trends.md are engine-managed). If web_fetch fails on all pages, still write a short dated report noting the fetch failure (and that connecting the Claude-in-Chrome extension would make the scan reliable), skip the engine run, and say so in your summary.

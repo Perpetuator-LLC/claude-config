@@ -219,9 +219,15 @@ Three tiers, each with its own ceremony (canonical how-to: mcp
 
 | Tier | Login | TTL | For |
 |---|---|---|---|
-| `operator` (daily) | OIDC SSO+TOTP | 8h | KV reads/writes in granted paths |
+| `operator` (daily) | OIDC SSO+TOTP | 18h | KV reads/writes in granted paths |
 | `admin` (elevation) | OIDC SSO+TOTP, deliberate | 1h | policy/auth/mount changes (new KV grants) |
 | root (break-glass) | `generate-root` ceremony w/ OFFLINE unseal key | minutes, then `token revoke -self` | seal ops, rekey, bootstrapping `admin` itself |
+
+**The daily TTL is a forcing function, not a convenience** (decision 2026-07-18, apply =
+mcp#116): 18h = one morning `bao login` covers the whole workday, yet the token is dead by
+the next morning — expiry IS the daily re-auth ritual. max_ttl equals creation TTL so
+renewal can't stretch past the day. Was 8h/12h (mid-day re-auth churn) until mcp#116 lands;
+never raise past 24h — that would create a standing credential.
 
 Rules learned live: **`bao policy write` REPLACES the whole policy** — read first, include
 every existing path. **If a provisioning script owns a policy, codify new grants in the

@@ -99,6 +99,11 @@
             "type": "command",
             "command": "bash ~/.claude/hooks/session-start.sh",
             "timeout": 15
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/context-integrity.sh",
+            "timeout": 10
           }
         ]
       }
