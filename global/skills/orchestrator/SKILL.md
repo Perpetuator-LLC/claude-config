@@ -28,14 +28,19 @@ history/archive; the board is the live surface. The hand-off protocol both docs 
 
 1. **Read** SOP-ORCH-001, then the board.
 2. **Re-arm the sweep cadence** — the sweep cron is session-only (SOP-ORCH-001 rule 10); recreate it.
-3. **Spin up / adopt the crew.** For each stream row in the board, ensure a worker thread exists:
+3. **Provision the standing crew routines** — from the board's **Standing Crew Routines** table,
+   call `list_scheduled_tasks` and `create_scheduled_task` for any that's missing (nightly thread
+   export, full Signal ingest, WeOwn Monday invoice, tuleap-reconcile, sop-distill, …). Each prompt
+   points at its source-of-truth in the vault/claude-config, so it's identical on every crew's
+   machine. Hand Nik a one-time "Run now" per new task to pre-approve its tools.
+4. **Spin up / adopt the crew.** For each stream row in the board, ensure a worker thread exists:
    drive an already-open session (adopt by renaming it to the stream), or emit that row's **kickoff
    block** for the human to open in the repo's directory, or spawn a persistent agent if your
    environment supports it. Each worker's FIRST job is to reconcile its live ticket queue and take
    ownership (SOP-ORCH-001 rules 11/18).
-4. **Dispatch** each worker its ONE current task via a cross-session message; record the directive
+5. **Dispatch** each worker its ONE current task via a cross-session message; record the directive
    as a ticket comment (rule 2). Never do the work yourself.
-5. **Surface the Nik-gated stack** — the board's consolidated list is the only thing Nik must act on.
+6. **Surface the Nik-gated stack** — the board's consolidated list is the only thing Nik must act on.
 
 ## Standing loop (every sweep)
 
