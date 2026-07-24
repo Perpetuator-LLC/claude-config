@@ -50,3 +50,9 @@ Follow **SOP-ORCH-002**: sweep once, ensure every stream's current task is a liv
 stream has a continuation doc, refresh the board rows + the Nik-gated stack, then hand over the
 single-prompt kickoff at the bottom of the board. The hand-off is **pointers, not payload** —
 everything durable already lives in the board, the tickets, the per-repo docs, and the journals.
+
+**Full-export migration** — when the hand-off must carry each thread's *reasoning* and *work-state*,
+not just the pointer board (migrating to a different machine/model, or when in-flight context
+matters): run **`/orchestrator-export`**. It exports every active thread two ways (`export-thread`
+reasoning from disk + each worker's `#SessionSummary` continuation), bundles them behind one dated
+master migration doc, and emits the single kickoff prompt a fresh boss pastes to resume the whole crew.
