@@ -114,6 +114,13 @@ them to concrete tools in each repo's config):
 | **Cross-cutting** | Decision/ADR · RAID · Responsibility · Evidence | recorded closest to where enacted, linked upward |
 | **Registry & knowledge** | Instances · Knowledge Base (rules, protocols, learnings, contributors) | **KMS vault** |
 
+**Cross-cutting records** (refined 2026-07-25): ADRs/Decisions, RAID/Risks, and Evidence/Learnings
+are **repo-specific** (live in the owning repo's docs); RACI/Accountability, Objects
+(Instances/People/Organizations/Definitions/Meetings), and Governance
+(Rules/Protocols/Best-Practices/SOPs) live in the **KMS vault as Bases + documents**.
+Working status map: vault `PLAN-ARTIFACT-CONSOLIDATION-1` (Artifact Migration — Consolidation
+Pass); repo-side standard: mcp `docs/guides/doc-standards.md`.
+
 A PM tool (Tuleap/Jira/Linear) MAY *mirror* the spine for tracking, but the **authoritative source**
 for each artifact is its home above — the mirror is a convenience, not the record.
 
