@@ -48,6 +48,21 @@ creates ongoing carrying cost; spend the diligence up front):
   accumulate work.
 - Mechanics for Gitea live in the `/ticket` skill (dedupe step is mandatory there).
 
+## Ecosystem diagrams (C4 PUML with status colors)
+Added 2026-07-25 (Nik directive; exemplars: vault "WeOwn.Chat - C4 Container.puml", mcp
+`docs/diagrams/perpetuator-platform-c4-container.puml`):
+- **Source of truth is the `.puml`**; rendered images are committed conveniences regenerated with
+  `plantuml -tpng` — always commit both together.
+- **Placement by altitude (G6/G11)**: Strategy/Theme/OKR/KPI-level views → the **vault** beside
+  the strategy docs; Requirements/Capabilities/Container-level views → the **owning initiative
+  repo's `docs/diagrams/`**. One home; the other layer links, never copies.
+- **Four status tags, always with a legend**: `done` green (live-verified) · `partial` amber
+  (built, not fully live) · `missing` red (decided but absent) · `spike` purple (**need known,
+  technology unchosen — every purple box implies an open SPIKE ticket**). Every non-green box
+  cites its ticket `[#NN]`; dashed Rels = future flows.
+- **Freshness contract**: flip a box's status in the same PR/session as the change that flips it;
+  the diagram header names its companion status doc when one exists.
+
 ## People-ops
 - **Contributor record = canonical identity** (assign tickets to the contributor, link a real
   account later — zero re-assignment churn).
