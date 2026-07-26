@@ -15,6 +15,11 @@ The non-negotiable security posture. Unlike most domains, **Security holds its l
 work** — a client's convenience preference never overrides these (precedence in the Core: my safety
 and security always apply). Flag, don't bypass.
 
+> **Where does this secret go?** → [`secrets-registry.md`](secrets-registry.md) — the canonical
+> secrets topology + path registry (stores, path conventions, per-service paths, the
+> route-before-create / register-on-create / retire-on-retire rule, and the 404-diagnosis recipe).
+> Consult it BEFORE seeding, moving, or hunting any secret path (added 2026-07-25).
+
 ---
 
 ## Supply chain — minimize what runs on the machine
