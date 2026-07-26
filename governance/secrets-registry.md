@@ -64,6 +64,7 @@ secret/services/<vendor-or-tool>       # cross-env vendor keys (e.g. an AI API k
 | cc-be | `secret/services/…` per repo docs | repo-side | |
 | mcp/platform services | `secret/services/<service>/…` (gitea, homepage, matrix-signal, mautrix-telegram, mcp, suitecrm, …) | platform repo | retired-service subtrees pending cleanup (see platform repo ticket) |
 | vendor keys | `secret/services/<vendor>` (e.g. the AI-API key the release changelog uses) | one-off | referenced from workflows as repo secrets where CI needs them |
+| wise | `secret/services/wise` (keys: `api_token`, `scope=read-only`) | Nik, 2026-07-25 (read -rs seed) | READ-ONLY personal token for contractor payment reconciliation (mcp#144, SOP-FIN-001); gateway must enforce read-only; statements need SCA — out of scope |
 
 ## Diagnosis recipe (the one from 2026-07-25)
 
