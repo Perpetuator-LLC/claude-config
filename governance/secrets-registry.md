@@ -33,13 +33,13 @@ the store at start via each repo's `generate-env-from-vault-runtime.sh` (or equi
 ## Path convention (central OpenBao, kv2 mount `secret/`)
 
 ```
-secret/services/<service>/<env>        # service runtime config+secrets; env ∈ {staging, prod}
+secret/services/<service>/<env>        # service runtime config+secrets; env ∈ {staging, production}
 secret/services/<vendor-or-tool>       # cross-env vendor keys (e.g. an AI API key)
 ```
 
 - CLI reads/writes use `secret/services/...`; the HTTP API (and compose `VAULT_PATH`) needs the
   `secret/data/services/...` form — a recurring confusion, both are the SAME secret.
-- **Env segment is exactly `staging` or `prod`** — never `stage`, `production`, `dev`. A 404 on a
+- **Env segment is exactly `staging` or `production`** — never `stage`, `prod`, `dev`. A 404 on a
   path that "should exist" is usually this naming drift or a policy that 404s on deny — diagnose
   with `bao token capabilities <data-path>` + `bao kv list` on the parent, never by guessing writes.
 
@@ -60,7 +60,7 @@ secret/services/<vendor-or-tool>       # cross-env vendor keys (e.g. an AI API k
 
 | Service | Paths | Seeded by | Notes |
 |---|---|---|---|
-| cc-fe | `secret/services/cc-fe/staging` ✅ · `secret/services/cc-fe/prod` ⚠️ | repo `scripts/seed-vault-staging.sh` (adapt per docs/deployment.md for prod) | **2026-07-25: prod path found MISSING on the central store while prod runs** — box-side compose drift or sibling-name seed suspected; must exist before any prod FE deploy (container renders env from it at start) |
+| cc-fe | `secret/services/cc-fe/staging` ✅ · `secret/services/cc-fe/production` ✅ | repo `scripts/seed-vault-staging.sh` (adapt per docs/deployment.md for prod) | 2026-07-25: the "missing prod path" was naming drift — the store key is `production`; repo files said `prod` and were aligned same day |
 | cc-be | `secret/services/…` per repo docs | repo-side | |
 | mcp/platform services | `secret/services/<service>/…` (gitea, homepage, matrix-signal, mautrix-telegram, mcp, suitecrm, …) | platform repo | retired-service subtrees pending cleanup (see platform repo ticket) |
 | vendor keys | `secret/services/<vendor>` (e.g. the AI-API key the release changelog uses) | one-off | referenced from workflows as repo secrets where CI needs them |
