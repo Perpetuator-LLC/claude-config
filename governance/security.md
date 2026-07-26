@@ -251,6 +251,62 @@ compression runs under `bash -o pipefail` so a mid-dump failure can't hide behin
 exit 0. Backup MONITORING must not share fate with the backup maker (a dead celery-beat
 silences a celery dead-man): in-app alerting is a layer, the real check is external.
 
+## Network control is not an agent capability (2026-07-26 standard)
+
+**No promptable interface — MCP tool, voice, chat, scheduled agent — may MUTATE network
+control.** DNS records/blocklists/allowlists, firewall rules, routing, VPN/tailnet ACLs:
+read yes, write never. Enforced, not merely documented: the DNS write tools were deleted
+from the gateway and `Permission.DNS_WRITE` removed, with tests that fail if either
+returns (mcp `services/mcp/tests/test_dns_no_write_tools.py`).
+
+**Why this class is special.** DNS is the resolution layer *beneath* every other control.
+Anything that can rewrite it silently redirects traffic for every device on the network —
+credential capture, MITM, exfiltration — and the change reads as ordinary config, not as
+an attack. Two properties make an AI interface the wrong place for it:
+- **Promptable**: the model acts on content it merely READS (a web page, an email, a log
+  line). A capability that reconfigures the network must not sit behind an input channel
+  that untrusted text can reach.
+- **Voice is worse**: weak authentication, no review step, no diff, ambient trigger.
+
+**Authorization floor for network control: a human, on a dev machine, inside the tailnet,
+over SSH.** That tier is the gate, and it is deliberately higher than "an agent holding a
+scope". The split is the principle: **agents may SEE the network, they may not STEER it** —
+observability (query logs, stats, metrics) carries no blast radius and stays freely
+available.
+
+**Generalization — rate a control surface by blast radius, not convenience.** The
+automation-authority principle (move the operation to where the authority lives) says how
+to automate safely; this is its ceiling: some capabilities should not be agent-reachable
+at any scope. Before exposing a mutating tool, ask *what does a confused or injected agent
+do with this at 3am?* If the answer is "silently reroute/deny/expose traffic for everyone",
+it belongs behind SSH, not behind a scope. **Reaching that bar is the prerequisite before
+building any deeper network-control-plus-AI integration** — earn the tier first.
+
+**Corollary — network policy belongs in IaC.** Allow/block lists that live only in an
+appliance are drift the repo cannot see; that invisibility is how a household ad-blocker
+came to block the business's own ad-platform API without anyone knowing (mcp#152).
+
+## DNS conflicts: fix at the narrowest scope that works (2026-07-26)
+
+When a shared DNS policy blocks something one machine legitimately needs, **do not widen
+the shared policy** — override at the narrowest scope, in this order:
+
+1. **Per-machine, per-domain resolver override.** macOS: `/etc/resolver/<domain>` containing
+   `nameserver 1.1.1.1` routes only that domain's lookups off the shared resolver, only on
+   that machine. Zero effect on everyone else, and the machine keeps filtering for
+   everything else. *Gotcha that will fool you:* `dig`/`nslookup` query resolvers directly
+   and IGNORE `/etc/resolver` — they still show the old answer. Verify with `curl` or a
+   browser, which use the system resolver. (Linux equivalent: systemd-resolved per-link
+   domain routing, or a dnsmasq `server=/domain/ip` line.)
+2. **Per-client-group policy on the resolver** (e.g. Technitium's Advanced Blocking app):
+   infrastructure and work devices exempt, family devices keep the blocklist.
+3. **Global allowlist entry — last resort**, and only with the cost stated out loud: it
+   reduces filtering for *every* device on the network.
+
+The reasoning generalizes past DNS: when a shared control blocks one legitimate use, the
+fix is scoped exemption, never a blanket loosening — a global change to satisfy one machine
+silently degrades the protection for everything else.
+
 ## Where this doc lives
 Canonical: `claude-config/governance/security.md` → `~/.claude/governance/security.md`. Extends the
 [Constitution](README.md). Infra/host conventions in [technical.md](technical.md).
