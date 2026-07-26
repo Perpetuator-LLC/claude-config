@@ -268,6 +268,22 @@ an attack. Two properties make an AI interface the wrong place for it:
   that untrusted text can reach.
 - **Voice is worse**: weak authentication, no review step, no diff, ambient trigger.
 
+**Calibration of the originating case (be accurate about it).** The tools actually removed
+(`dns_block_domain` / `dns_allow_domain`) reached only the resolver's block/allow LISTS — no
+zone or record editing — so the reachable harm was **denial and filter-bypass**, not
+redirection. The class rationale above (redirection/MITM) still governs the rule, because
+the class includes record control; do not read the incident as a live MITM hole. Two things
+made the list-only surface serious anyway: **blinding** (blocking the alert relay or chat
+homeserver silences alerting while everything looks normal) and **bypass** (an allowlist
+entry overrides subscribed blocklists). No template granted the scope, so standing exposure
+was to `*`-scoped sessions — narrow, but real.
+
+**The tell to remember:** the permission's own comment read *"gate carefully"*. Someone saw
+the risk and shipped it behind a scope. **"Gate carefully" is not a control** — that is
+precisely why this is a hard tier rather than a scope: it removes the judgment call from the
+moment of temptation. Capability without observability (no confirmation, no change alert, no
+reviewable diff) is where the line falls.
+
 **Authorization floor for network control: a human, on a dev machine, inside the tailnet,
 over SSH.** That tier is the gate, and it is deliberately higher than "an agent holding a
 scope". The split is the principle: **agents may SEE the network, they may not STEER it** —
