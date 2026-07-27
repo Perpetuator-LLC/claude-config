@@ -323,6 +323,44 @@ The reasoning generalizes past DNS: when a shared control blocks one legitimate 
 fix is scoped exemption, never a blanket loosening — a global change to satisfy one machine
 silently degrades the protection for everything else.
 
+### Pick the rung from the CONSUMER, not from the domain (2026-07-26)
+
+The ladder above is useless if you ask the wrong question. The instinct is to ask *"is this
+domain legitimate?"* — which is almost always yes, and always argues for rung 3. The right
+question is **"who actually needs this, and does everyone else need it too?"**
+
+Worked example, and the mistake it caught: after the household ad-blocker was found blocking
+X's ad domains, I drafted a **global** allowlist for `ads.x.com` / `analytics.x.com` /
+`ads-api.x.com`. Nik stopped it — *"we want ads blocked for the family network right?"* Both
+things were true at once: the domains are legitimate business infrastructure, **and** a
+global exemption hands the family network X's ad tracking. The blocklist doing its job is
+not a bug to be worked around.
+
+**The same domain can sit on different rungs for different consumers.** Decompose by
+consumer before choosing:
+
+| Consumer | Actually needs | Rung |
+|---|---|---|
+| One human running ad campaigns in a web UI | `ads.x.com`, `analytics.x.com` | **1** — per-machine resolver override on that Mac |
+| Servers doing conversion sync via API | `ads-api.x.com` | **2** — group policy *if* those hosts even resolve through this resolver (often they don't; verify before exempting) |
+| Family devices | nothing | **blocked, unchanged** |
+
+So a single "unblock X ads" request splits into one machine-local override, one
+verify-then-maybe group policy, and one deliberate no-change. **A global allowlist that
+stays empty is the success condition, not an unfinished job** — record rejected candidates
+and the reason in the file so the next person doesn't re-add them.
+
+**Two separations, don't conflate them.** They answer different questions and split along
+different lines:
+
+| Separation | Question it answers | Splits by |
+|---|---|---|
+| **Policy scope** (this section) | who gets the exemption | *who consumes it* — machine / group / everyone |
+| **Config location** ([technical.md](technical.md) → public engine, private config) | who may read the config | *what is publishable* — public repo / private overlay / secret store |
+
+They cut across each other: a machine-scoped exemption may still be private config, and a
+network-wide policy may be perfectly publishable. Deciding one does not decide the other.
+
 ## Where this doc lives
 Canonical: `claude-config/governance/security.md` → `~/.claude/governance/security.md`. Extends the
 [Constitution](README.md). Infra/host conventions in [technical.md](technical.md).
