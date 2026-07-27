@@ -361,6 +361,57 @@ different lines:
 They cut across each other: a machine-scoped exemption may still be private config, and a
 network-wide policy may be perfectly publishable. Deciding one does not decide the other.
 
+## Security review: identify → ticket → hand off (2026-07-27 standard)
+
+**A security reviewer's deliverable is a triaged, verified finding that has REACHED THE WORK
+QUEUE — not a patch.** Reviewers (the nightly/weekly audit agents, `/security-review`, any
+audit pass) are not responsible for remediating what they find. Their job ends at:
+
+1. **Identify** — find it, and adversarially verify it firsthand (attacker-reachable input +
+   unguarded sink, real file:line). Discard what you cannot confirm; a plausible-but-unverified
+   finding costs more than it's worth.
+2. **Triage** — separate real from noise, and rate by **actual exploitability, not theoretical
+   severity**. A dev-only CVE that never enters the bundle is not a P1 because the scanner said
+   "moderate".
+3. **Ticket** — file it in the owning repo with a priority label, self-contained enough to act on
+   without the audit session.
+4. **Hand off** — tell the repo's worker thread the tickets exist and in what order.
+
+**Fixing is optional and never the obligation.** A reviewer MAY land a small, surgical,
+high-confidence fix — that's a bonus. It must never become the reason a finding goes unticketed,
+and a fix that needs design work, touches a funnel under active churn, or can't be verified in
+the reviewer's environment should be *ticketed instead*, with the exact patch recorded in the
+ticket body.
+
+**Why the separation.** Reviewer and worker are different jobs with different context, and
+conflating them loses findings:
+- A reviewer that only writes a dated markdown file on an unpushed audit branch has **no path
+  into the work queue**. It reads as done; nothing is scheduled. *(Lived: the cc-fe baseline of
+  2026-06-26 still had rows #2/#3/#4/#6 untouched on 2026-07-27 — a month — because thirteen
+  audit runs had produced reports and zero tickets. The run that finally filed them surfaced 7
+  real items that had been invisible backlog the whole time.)*
+- Unattended reviewers can't run the full test suite, can't build, and can't judge product
+  blast-radius. That's exactly the context a worker has and a reviewer doesn't.
+- One agent doing both optimizes for what it can safely change, so the *hard* findings — the
+  ones needing design or cross-repo coordination — are the ones that silently rot.
+
+**Ticket contents** — self-contained, actionable without the audit thread: what's wrong, `file:line`,
+why it matters *in this system* (who controls the input, what the attacker gets), the concrete fix
+(name the existing helper/pattern to copy), the traps the worker will hit, and an explicit
+**done-when**. Priority labels are org-level in Gitea (`P0` critical → `P3` minimal) and are set
+**after** creation — the create-issue API takes label IDs, not names, so `create_issue` then
+`set_issue_labels` with names.
+
+**What must NOT go in a ticket.** Tickets are written as if public (rule 16). A finding whose
+*description is itself the disclosure* — a live unrotated credential, an unpatched exploitable
+path with a working recipe — stays out of the tracker and goes to the human directly, with the
+detail left in the access-controlled audit note. "File a ticket" never overrides that.
+
+**The hand-off.** Delivering the list to the worker is part of the job, not an afterthought.
+Unattended runs (scheduled tasks) **cannot message other sessions** — cross-session messaging is
+disabled there — so the hand-off is a paste-ready block in the run's final summary, addressed to
+the repo's worker thread, ordered, with each ticket's one-line "why this order".
+
 ## Where this doc lives
 Canonical: `claude-config/governance/security.md` → `~/.claude/governance/security.md`. Extends the
 [Constitution](README.md). Infra/host conventions in [technical.md](technical.md).
