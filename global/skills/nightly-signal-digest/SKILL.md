@@ -23,3 +23,27 @@ Follow the skill at Products/Perpetuator/Skills/signal-ingest/SKILL.md EXACTLY. 
 7. Finish the run report. Surface pending_routing chats and unresolved_senders prominently — those are the only items needing Nik.
 
 The capture is idempotent: re-running the same window is a no-op; extending the look-back only picks up newly-revealed older messages. Never edit signal_message_ids by hand. Journal entries are append-only. Tyler uses she/her pronouns.
+
+## Meeting-recording links are captured, not just linked (2026-07-27)
+
+When an ingested message contains a **recording/meeting share link** — `fathom.video/share/...`,
+a Zoom cloud-recording share, or equivalent — the recording is part of the communication, so
+capture its CONTENT into the journal in the same pass. Do not merely record the URL: a bare link
+rots (shares expire, and nobody re-opens them at invoice or decision-audit time).
+
+For each such link found:
+
+1. **Pull the content** — title, date, duration, participants, AI summary, action items, and the
+   transcript if reachable. Zoom recordings: use the Zoom connector (`get_meeting_assets` /
+   `get_recording_resource`). Fathom and other web-only shares: fetch the share page (WebFetch,
+   then a browser surface if it is a JS app).
+2. **Write it as a meeting journal entry** in the correct week folder, named like the existing
+   meeting notes (`<Topic> - <Source> - <YYYY-MM-DD>.md`), with the share URL in the frontmatter
+   and decisions/actions extracted into the entry — same treatment a Signal thread gets.
+3. **Feed the normal pipeline**: AI Summary + CTO Analysis, state-doc updates, work items.
+4. **If the fetch is blocked** (site permissions, expired share, login wall), still create the
+   entry with the link and mark it `capture: blocked — <reason>`, and surface it in the run report
+   under the items needing Nik. Never silently drop it.
+
+No separate job for this — it is part of communication ingestion, because that is how these links
+arrive.
