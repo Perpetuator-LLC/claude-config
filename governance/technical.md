@@ -241,6 +241,33 @@ means rewriting history. First instance: the DNS policy overlay (mcp#152). Scope
 - **Scripts re-exec'd by path need the git exec bit AND `exec bash "$path"`** — checkout
   restores committed modes; a 0644 script killed a prod deploy with "Permission denied".
 
+## Definition of done: a service isn't deployed until its backups are PROVEN (2026-07-27 standard)
+
+**"Live" means serving traffic AND a verified backup sitting off-box. A service that answers
+200 with no proven backup is not done — it is an outage waiting for its first bad day.**
+Calling it done is a false claim, not an optimistic one.
+
+- **Proven = both halves, observed**: (1) a backup actually *landed on the offsite target*
+  — list the object, check size and timestamp; "the cron is installed" and "the script
+  exited 0" are not evidence — and (2) it *restores*, at minimum a rehearsal into a
+  throwaway target proving the dump loads and the archive unpacks. An unrestorable backup
+  is a backup-shaped file.
+- **Why this is a rule**: through July 2026 three services (IdP, git, customer chat
+  instances) were each declared live and handed over while **not one backup had ever
+  offloaded** — scripts existed, crons existed, the storage credentials were never seeded.
+  Every "done" was sincere and wrong, because the check performed was "did the deploy play
+  go green", which cannot see this class of gap.
+- **So the check must be systematic**: backup wiring is the step with no user-visible
+  symptom until the data is already gone, which is exactly why it loses the race against
+  the next feature. Put the assertion INSIDE the deploy gate (smoke test asserts a fresh
+  object exists in the remote bucket), never on a follow-up list.
+- **Applies to language in hand-overs**: never write "✅ Live" in a board, changelog, or
+  client-facing doc for a service whose backup has not been observed landing. Write "live,
+  backups unverified" until it has — that distinction is the entire point of the rule.
+- **Corollary — restores break silently on drift**: a rename shipped `backup.sh` writing
+  one bucket while `restore.sh` read another, and secret-name drift (`DB_*` → `POSTGRES_*`)
+  broke both. Only a restore rehearsal catches that class; no green deploy ever will.
+
 ## Shell & CI gotchas (each cost a live failure)
 
 - **Unanchored ignore patterns** (`backups/` in `.gitignore`/`.dockerignore`) match at
