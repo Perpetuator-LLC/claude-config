@@ -413,5 +413,5 @@ disabled there — so the hand-off is a paste-ready block in the run's final sum
 the repo's worker thread, ordered, with each ticket's one-line "why this order".
 
 ## Where this doc lives
-Canonical: `claude-config/governance/security.md` → `~/.claude/governance/security.md`. Extends the
+Canonical: `operating-canon/governance/security.md` → `~/.claude/governance/security.md`. Extends the
 [Constitution](README.md). Infra/host conventions in [technical.md](technical.md).

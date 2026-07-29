@@ -28,6 +28,9 @@ history/archive; the board is the live surface. The hand-off protocol both docs 
 
 1. **Read** SOP-ORCH-001, then the board.
 2. **Re-arm the sweep cadence** — the sweep cron is session-only (SOP-ORCH-001 rule 10); recreate it.
+   **Then retire the predecessor:** once YOUR cron is confirmed armed, `send_message` the outgoing
+   orchestrator session (if one exists) to stop its loop and stand down — clean baton: new loop
+   running BEFORE the old one stops. Retitle the old session "(superseded)".
 3. **Spin up / adopt the crew.** For each stream row in the board, ensure a worker thread exists:
    drive an already-open session (adopt by renaming it to the stream), or emit that row's **kickoff
    block** for the human to open in the repo's directory, or spawn a persistent agent if your
@@ -50,3 +53,9 @@ Follow **SOP-ORCH-002**: sweep once, ensure every stream's current task is a liv
 stream has a continuation doc, refresh the board rows + the Nik-gated stack, then hand over the
 single-prompt kickoff at the bottom of the board. The hand-off is **pointers, not payload** —
 everything durable already lives in the board, the tickets, the per-repo docs, and the journals.
+
+**Full-export migration** — when the hand-off must carry each thread's *reasoning* and *work-state*,
+not just the pointer board (migrating to a different machine/model, or when in-flight context
+matters): run **`/orchestrator-export`**. It exports every active thread two ways (`export-thread`
+reasoning from disk + each worker's `#SessionSummary` continuation), bundles them behind one dated
+master migration doc, and emits the single kickoff prompt a fresh boss pastes to resume the whole crew.

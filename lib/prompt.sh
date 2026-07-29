@@ -11,7 +11,7 @@
 # hand-off blocks. This library is the universal FORMAT; `resolve_host` reads the
 # engagement's inventory for the NAMES. A machine rename is then one edit.
 #
-# Placement (governance): this universal tooling lives in claude-config (the
+# Placement (governance): this universal tooling lives in operating-canon (the
 # all-projects layer); the hostnames it renders come from each project's inventory
 # (the engagement layer). See global/CLAUDE.md → "Prompt & host-name standard".
 

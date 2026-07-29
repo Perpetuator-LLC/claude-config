@@ -1,6 +1,6 @@
 ---
 name: nightly-tuleap-reconcile
-description: RETIRED 2026-07-25 — Tuleap is being decommissioned (ADR-025 / mcp#138). This skill no longer syncs anything; if invoked it reports the retirement and exits. Kept as a stub so scheduled runs fail loudly-but-harmlessly instead of erroring against frozen write tools.
+description: "RETIRED 2026-07-25 — Tuleap is being decommissioned (ADR-025, migration ticket mcp#138). This skill no longer syncs anything; if invoked it reports the retirement and exits. Kept as a stub so a leftover schedule fails harmlessly instead of erroring against frozen write tools."
 ---
 
 # RETIRED — do not run a reconcile

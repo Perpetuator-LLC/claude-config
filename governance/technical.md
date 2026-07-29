@@ -164,7 +164,7 @@ summary lives in the global `CLAUDE.md`; the full mechanics are here.)*
   says WHAT / WHERE-from / WHICH machine-or-service. Scripts source the format from
   `${CLAUDE_LIB:-$HOME/.claude/lib}/prompt.sh` (`prompt_secret` / `prompt_plain`). Machine NAMES are
   engagement DATA with one source of truth — the project's ansible inventory — never hardcoded
-  (`resolve_host <group>`). Placement: universal tooling → `claude-config`; engagement data
+  (`resolve_host <group>`). Placement: universal tooling → `operating-canon`; engagement data
   (hostnames, registry, custody) → the engagement; secret VALUES → the store + off-box.
 - **Session pre-flight**: an operator script needing a specific auth ROLE verifies the ACTIVE session
   IS that role BEFORE the work and remediates, rather than failing deep in a run (`ensure_bao_role
@@ -279,6 +279,6 @@ means rewriting history. First instance: the DNS policy overlay (mcp#152). Scope
 ---
 
 ## Where this doc lives
-Canonical: `claude-config/governance/technical.md` → `~/.claude/governance/technical.md`. Extends the
+Canonical: `operating-canon/governance/technical.md` → `~/.claude/governance/technical.md`. Extends the
 [Constitution](README.md). Security-adjacent rules (secrets, supply-chain, access) live in
 [security.md](security.md).

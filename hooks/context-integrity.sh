@@ -34,7 +34,7 @@ for link in CLAUDE.md settings.json agents skills governance; do
   if [[ -L "$target" && ! -e "$target" ]]; then
     add_finding "BROKEN" "~/.claude/$link (dead symlink)" "everything under it is unavailable"
   elif [[ ! -e "$target" ]]; then
-    add_finding "MISSING" "~/.claude/$link" "surface not installed (run claude-config/install.sh)"
+    add_finding "MISSING" "~/.claude/$link" "surface not installed (run operating-canon/install.sh)"
   fi
 done
 

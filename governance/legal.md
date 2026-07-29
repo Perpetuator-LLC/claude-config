@@ -39,4 +39,4 @@ terms govern *their* engagement; my baseline (NDA-before-work, IP clarity) alway
 - [ ] Privacy/compliance posture (GDPR/CCPA) for products that hold user data.
 - [ ] Trademark + brand-mark usage rules.
 
-Canonical: `claude-config/governance/legal.md` → `~/.claude/governance/legal.md`.
+Canonical: `operating-canon/governance/legal.md` → `~/.claude/governance/legal.md`.

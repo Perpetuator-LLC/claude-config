@@ -104,8 +104,9 @@ Any **durable resource** you provision (IAM user/role, API token, VM, service/co
 ## Developer Flow — work like a developer (summary; full mechanics: governance/technical.md)
 
 - **Feature branch → integration branch → one PR.** Work locally on descriptive `type/slug` branches; integrate finished work into this machine's standing integration branch **`merge/$(whoami)-$(hostname -s | tr 'A-Z' 'a-z')`** (this Mac: `merge/nik-mac`); push ONLY that and keep ONE open **classic** PR → default. Never push main directly, never AGit (`refs/for/…`) for the integration branch, never bypass checks. OPEN the PR yourself; hand over a one-click compare URL only when the PR tool is unavailable.
+  **This is the UNPROMPTED DEFAULT in EVERY session, worker, and repo (4th-strike class, 2026-07-29)** — never wait for Nik to remind you. If `merge/<agent>` doesn't exist on origin, CREATE it (from `origin/<default>`), don't conclude "this repo PRs from feature branches". Finding open side feature→default PRs is DRIFT to repair, not a precedent to follow: fold those branches into `merge/<agent>`, close the side PRs pointing at the one integration PR. Never open a second PR while the integration PR is open — later work merges into the branch and rides the SAME PR (the PR is a rolling review window, one per machine-agent). Local branches are unlimited; the remote surface is one branch, one PR. (Strike: worker saw no `merge/nik-mac` on origin + PRs #13/#14 from side branches, and shipped a THIRD PR instead of consolidating — Nik has had to re-teach this in every repo.)
 - **After a merge the integration branch has drifted** — refresh it (`git reset --hard origin/<default>`, cherry-pick back only `+` commits per `git cherry -v origin/<default> origin/merge/<agent>`, `--force-with-lease`); never route around it with a side feature→main PR.
-- **Config changes ship like code** — `claude-config` edits go on `merge/<agent>` → human-reviewed PR, never direct to main. The active config is SYMLINKED, so an edit is live on THIS machine immediately (pre-review); the PR gates the *published canon* (G4 — revert the local edit too if review rejects it).
+- **Config changes ship like code** — `operating-canon` edits go on `merge/<agent>` → human-reviewed PR, never direct to main. The active config is SYMLINKED, so an edit is live on THIS machine immediately (pre-review); the PR gates the *published canon* (G4 — revert the local edit too if review rejects it).
 - **Finish before hand-over**: test, validate, security-scan what you touched, push, present merge-ready. Fix in-scope bugs you find (regression test, documented). Condense & consolidate — few well-scoped commits, one branch/PR per related change. Full detail — drift refresh, multi-session discipline, integration-checkout provisioning, prompt/host-name standard, session pre-flight — in `governance/technical.md`.
 
 ## Implementation Discipline
@@ -134,19 +135,19 @@ The active config is **symlinked** from a versioned repo — edit the source in 
 
 | `~/.claude/...` | source |
 |---|---|
-| `settings.json` | `~/projects/claude-config/global/settings.json` |
-| `CLAUDE.md` (this file) | `~/projects/claude-config/global/CLAUDE.md` |
-| `agents/*.md` | `~/projects/claude-config/global/agents/*.md` |
-| `skills/*/SKILL.md` | `~/projects/claude-config/global/skills/*/SKILL.md` |
-| `governance/*.md` | `~/projects/claude-config/governance/*.md` |
-| `hooks/*.sh` | `~/projects/claude-config/hooks/*.sh` |
+| `settings.json` | `~/projects/operating-canon/global/settings.json` |
+| `CLAUDE.md` (this file) | `~/projects/operating-canon/global/CLAUDE.md` |
+| `agents/*.md` | `~/projects/operating-canon/global/agents/*.md` |
+| `skills/*/SKILL.md` | `~/projects/operating-canon/global/skills/*/SKILL.md` |
+| `governance/*.md` | `~/projects/operating-canon/governance/*.md` |
+| `hooks/*.sh` | `~/projects/operating-canon/hooks/*.sh` |
 | `CLAUDE.local.md` | **not** symlinked — local personal overrides |
 
-New hook/skill → run `~/projects/claude-config/install.sh` to symlink it. Existing symlinks update via `git pull` (they point into the repo). Full architecture: `~/projects/claude-config/README.md`.
+New hook/skill → run `~/projects/operating-canon/install.sh` to symlink it. Existing symlinks update via `git pull` (they point into the repo). Full architecture: `~/projects/operating-canon/README.md`.
 
 ## Governance (auto-loaded)
 
-The **Executive/Core governance constitution** — the universal operating rules (G1–G11), the **precedence ladder**, the **engagement-layering** model (how my governance merges with a client's, e.g. WeOwn/FedArc), and the index of the C-Suite role domains — is imported below. The role-specific domains (**Technical · Security · Financial · Legal · Marketing · Operations · Product**) live at `~/.claude/governance/<domain>.md`; **consult the relevant domain doc when working in that area** (they are not auto-loaded, to keep sessions lean). Canonical source: `~/projects/claude-config/governance/`.
+The **Executive/Core governance constitution** — the universal operating rules (G1–G11), the **precedence ladder**, the **engagement-layering** model (how my governance merges with a client's, e.g. WeOwn/FedArc), and the index of the C-Suite role domains — is imported below. The role-specific domains (**Technical · Security · Financial · Legal · Marketing · Operations · Product**) live at `~/.claude/governance/<domain>.md`; **consult the relevant domain doc when working in that area** (they are not auto-loaded, to keep sessions lean). Canonical source: `~/projects/operating-canon/governance/`.
 
 @~/.claude/governance/README.md
 

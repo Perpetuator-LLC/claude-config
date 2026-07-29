@@ -126,4 +126,4 @@ state** — which HOST, which DIRECTORY, which USER, the exact command; never "t
 - [ ] Vendor/tool evaluation + registry process.
 - [ ] Weekly review / ops-review ritual.
 
-Canonical: `claude-config/governance/operations.md` → `~/.claude/governance/operations.md`.
+Canonical: `operating-canon/governance/operations.md` → `~/.claude/governance/operations.md`.
