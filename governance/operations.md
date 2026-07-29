@@ -120,6 +120,24 @@ state** — which HOST, which DIRECTORY, which USER, the exact command; never "t
   on the expected branch (`git -C <dir> symbolic-ref --short HEAD`) and say you verified — worktrees get
   switched by parallel sessions. Prefer running a new file from a checkout that already has it, leaving
   their working branch untouched.
+- **Hand-over blocks tee to a watched log so the agent auto-progresses (2026-07-29, Nik-requested).**
+  A human-run block whose outcome the agent needs (playbook run, ceremony, rotation) should not end in
+  "paste me the output" — that makes the human the transport. Instead:
+  - The block wraps the command so the human still sees everything live AND a log captures it, with
+    the REAL exit code preserved: `{ <cmd>; echo "EXIT=$?"; } 2>&1 | tee -a ~/.agent-handoff/<task>.log`.
+    The `{ …; echo EXIT=$?; }` group records the command's own status BEFORE the pipe, so tee's exit
+    code doesn't mask a failure. Do NOT reach for `set -o pipefail` in a pasted block (interactive-shell
+    ban stands) and don't build fancier fd plumbing — pipe-to-tee return-code games get complex fast;
+    the brace-group idiom is the whole trick. `nice` the command only if it's genuinely heavy.
+  - The agent ARMS THE WATCH BEFORE handing the block over: on macOS there is no inotify — use
+    `fswatch` if installed, else a background poll of the log's mtime/size (or the harness Monitor
+    tool); on Linux, `inotifywait`. On change, read the tail, act on `EXIT=` and the content in BOTH
+    directions — failure → diagnose immediately, success → advance the next step — without waiting for
+    the human to report back.
+  - Existing specializations of the same principle: ansible runs are already watched via
+    `infra/ansible/logs/ansible.log` (grep `fatal:`); this generalizes it to ANY handed command.
+    Secret-bearing prompts stay OUT of the log (`read -rs` reads from the tty, so hidden input never
+    reaches tee — but never `echo` a secret into the wrapped group).
 
 ## TODO (fill in / publish)
 - [ ] Meeting cadence + standing-agenda standard per engagement.
