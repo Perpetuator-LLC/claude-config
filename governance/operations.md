@@ -50,6 +50,13 @@ creates ongoing carrying cost; spend the diligence up front):
   first. Duplicate found later → close-as-dup immediately with a verified pointer, don't let twins
   accumulate work.
 - Mechanics for Gitea live in the `/ticket` skill (dedupe step is mandatory there).
+- **Every ticket carries a priority (P0–P3) AND exactly one type label (2026-07-29, Nik —
+  organizational requirement, all repos):** `bug` (built behavior is wrong) · `enhancement`
+  (new capability / gap / decision / spike / epic) · `performance` (correct but too slow/heavy).
+  Type labels use the house colors — `bug` purple `#5319e7`, `enhancement` blue `#1d76db`,
+  `performance` dark blue `#0052cc` — so they read as one organizational family, distinct from
+  the red-to-green priority ramp. An unlabeled or type-less ticket in a sweep gets best-guess
+  labels on sight (same rule-24 reflex as priorities).
 
 ## Ecosystem diagrams (C4 PUML with status colors)
 Added 2026-07-25 (Nik directive; exemplars: vault "WeOwn.Chat - C4 Container.puml", mcp

@@ -33,6 +33,14 @@ description: File a Gitea ticket in the current (or inferred) repo. Invoke on /t
      `create_missing: true`) immediately after `gitea_create_issue` — one
      labeled ticket = create + set_labels, every time. A 422 on labeling is a
      bug to fix, not a reason to ship an unlabeled ticket.
+   - **Type label is MANDATORY on every ticket (2026-07-29, Nik — org-wide,
+     all repos):** exactly one of `bug` (something built behaves wrong),
+     `enhancement` (new capability, gap, decision, spike, epic), or
+     `performance` (works, too slow/heavy). Applied in the same
+     `gitea_set_issue_labels` call as the priority. House colors (set via
+     `gitea_edit_label` if a `create_missing` created the label fresh):
+     `bug` `#5319e7` (purple) · `enhancement` `#1d76db` (blue) ·
+     `performance` `#0052cc` (dark blue).
    - Body: context (why now), the ask, acceptance criteria as checkboxes,
      links to related tickets/docs. **Rule 16: written as if public** — no
      internal IPs, on-box paths, secret-store paths/versions; reference form
