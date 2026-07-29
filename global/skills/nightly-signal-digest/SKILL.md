@@ -1,6 +1,6 @@
 ---
 name: nightly-signal-digest
-description: Nightly Signal ingest: read the last 24h of Signal messages via local-mcp and process them into the Perpetuator vault (idempotent capture → AI summary → state docs → Tuleap). No Matrix.
+description: Nightly Signal ingest: read the last 24h of Signal messages via local-mcp and process them into the Perpetuator vault (idempotent capture → AI summary → state docs → Gitea issues). No Matrix.
 ---
 
 You are the nightly Signal ingest for Perpetuator LLC's Obsidian vault at /Users/nik/projects/notes/Perpetuator.
@@ -19,7 +19,7 @@ Follow the skill at Products/Perpetuator/Skills/signal-ingest/SKILL.md EXACTLY. 
      --report logs/signal-ingest/<YYYY-MM-DD-HHMM>.md
    (pip install pyyaml --break-system-packages if needed)
 5. If the report says noop:true, append a "no new messages" line to the report and STOP.
-6. Otherwise, for every created/appended journal entry: fill the AI Summary and CTO Analysis, update impacted state docs, sync to Tuleap (checking for duplicates first; if Tuleap is down, leave tuleap_sync:pending for tuleap-reconcile), then set processed:true / summarized:true.
+6. Otherwise, for every created/appended journal entry: fill the AI Summary and CTO Analysis, update impacted state docs, file/refresh the work item as a **Gitea issue on the owning repo** (dedupe by goal first — never a twin; Tuleap is retired, ADR-025), then set processed:true / summarized:true.
 7. Finish the run report. Surface pending_routing chats and unresolved_senders prominently — those are the only items needing Nik.
 
 The capture is idempotent: re-running the same window is a no-op; extending the look-back only picks up newly-revealed older messages. Never edit signal_message_ids by hand. Journal entries are append-only. Tyler uses she/her pronouns.

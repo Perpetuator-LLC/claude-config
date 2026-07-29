@@ -164,7 +164,7 @@ summary lives in the global `CLAUDE.md`; the full mechanics are here.)*
   says WHAT / WHERE-from / WHICH machine-or-service. Scripts source the format from
   `${CLAUDE_LIB:-$HOME/.claude/lib}/prompt.sh` (`prompt_secret` / `prompt_plain`). Machine NAMES are
   engagement DATA with one source of truth — the project's ansible inventory — never hardcoded
-  (`resolve_host <group>`). Placement: universal tooling → `claude-config`; engagement data
+  (`resolve_host <group>`). Placement: universal tooling → `operating-canon`; engagement data
   (hostnames, registry, custody) → the engagement; secret VALUES → the store + off-box.
 - **Session pre-flight**: an operator script needing a specific auth ROLE verifies the ACTIVE session
   IS that role BEFORE the work and remediates, rather than failing deep in a run (`ensure_bao_role
@@ -203,6 +203,30 @@ volume, `up` at the ref. Two hard rules paid for in a prod outage (cc-be 2026-07
   the abandoned path. Stage-first, and gate on data-present.
 - **Image ↔ state is a compatibility contract**, not a pairing: restore is always
   *volume → migrate with this image → verify counts*, never "attach and up".
+
+## Public engine, private config (2026-07-26 standard)
+
+An IaC repo has two kinds of content, and only one of them can ever go public:
+
+| Layer | Contains | Home | Publishable |
+|---|---|---|---|
+| **Engine** | playbooks, roles, compose files, scripts, tests — *how* things are done | the main repo | yes, by design |
+| **Config** | inventories, host addresses, network policy, per-site values — *what* it's done to | a **private overlay repo** | never |
+| **Secrets** | credentials | the secret store only | never, in either repo |
+
+The engine reads the overlay by path (`-e policy_dir=…`), so the public half is complete,
+runnable, and reviewable, while the private half stays a small diffable set of data files.
+The split is what makes "should this repo be public?" answerable at all — otherwise a single
+internal hostname anywhere in the tree vetoes publishing the whole thing forever.
+
+**Private is not a licence to commit secrets.** The overlay is *lower-sensitivity*, not
+*safe*; the same gitleaks gate and the same store-everything-else rule apply. If a value
+would burn on disclosure, it belongs in the store even in the private repo.
+
+Do the split **when you create the config**, not when you decide to publish — retrofitting
+means rewriting history. First instance: the DNS policy overlay (mcp#152). Scope of a
+*policy* is a separate question from location of its *config*; see
+[security.md](security.md) → *Pick the rung from the CONSUMER*.
 
 ## Deploys & health (2026-07 standard — pull-based)
 
@@ -255,6 +279,6 @@ volume, `up` at the ref. Two hard rules paid for in a prod outage (cc-be 2026-07
 ---
 
 ## Where this doc lives
-Canonical: `claude-config/governance/technical.md` → `~/.claude/governance/technical.md`. Extends the
+Canonical: `operating-canon/governance/technical.md` → `~/.claude/governance/technical.md`. Extends the
 [Constitution](README.md). Security-adjacent rules (secrets, supply-chain, access) live in
 [security.md](security.md).

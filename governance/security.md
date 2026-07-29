@@ -15,6 +15,11 @@ The non-negotiable security posture. Unlike most domains, **Security holds its l
 work** — a client's convenience preference never overrides these (precedence in the Core: my safety
 and security always apply). Flag, don't bypass.
 
+> **Where does this secret go?** → [`secrets-registry.md`](secrets-registry.md) — the canonical
+> secrets topology + path registry (stores, path conventions, per-service paths, the
+> route-before-create / register-on-create / retire-on-retire rule, and the 404-diagnosis recipe).
+> Consult it BEFORE seeding, moving, or hunting any secret path (added 2026-07-25).
+
 ---
 
 ## Supply chain — minimize what runs on the machine
@@ -246,6 +251,167 @@ compression runs under `bash -o pipefail` so a mid-dump failure can't hide behin
 exit 0. Backup MONITORING must not share fate with the backup maker (a dead celery-beat
 silences a celery dead-man): in-app alerting is a layer, the real check is external.
 
+## Network control is not an agent capability (2026-07-26 standard)
+
+**No promptable interface — MCP tool, voice, chat, scheduled agent — may MUTATE network
+control.** DNS records/blocklists/allowlists, firewall rules, routing, VPN/tailnet ACLs:
+read yes, write never. Enforced, not merely documented: the DNS write tools were deleted
+from the gateway and `Permission.DNS_WRITE` removed, with tests that fail if either
+returns (mcp `services/mcp/tests/test_dns_no_write_tools.py`).
+
+**Why this class is special.** DNS is the resolution layer *beneath* every other control.
+Anything that can rewrite it silently redirects traffic for every device on the network —
+credential capture, MITM, exfiltration — and the change reads as ordinary config, not as
+an attack. Two properties make an AI interface the wrong place for it:
+- **Promptable**: the model acts on content it merely READS (a web page, an email, a log
+  line). A capability that reconfigures the network must not sit behind an input channel
+  that untrusted text can reach.
+- **Voice is worse**: weak authentication, no review step, no diff, ambient trigger.
+
+**Calibration of the originating case (be accurate about it).** The tools actually removed
+(`dns_block_domain` / `dns_allow_domain`) reached only the resolver's block/allow LISTS — no
+zone or record editing — so the reachable harm was **denial and filter-bypass**, not
+redirection. The class rationale above (redirection/MITM) still governs the rule, because
+the class includes record control; do not read the incident as a live MITM hole. Two things
+made the list-only surface serious anyway: **blinding** (blocking the alert relay or chat
+homeserver silences alerting while everything looks normal) and **bypass** (an allowlist
+entry overrides subscribed blocklists). No template granted the scope, so standing exposure
+was to `*`-scoped sessions — narrow, but real.
+
+**The tell to remember:** the permission's own comment read *"gate carefully"*. Someone saw
+the risk and shipped it behind a scope. **"Gate carefully" is not a control** — that is
+precisely why this is a hard tier rather than a scope: it removes the judgment call from the
+moment of temptation. Capability without observability (no confirmation, no change alert, no
+reviewable diff) is where the line falls.
+
+**Authorization floor for network control: a human, on a dev machine, inside the tailnet,
+over SSH.** That tier is the gate, and it is deliberately higher than "an agent holding a
+scope". The split is the principle: **agents may SEE the network, they may not STEER it** —
+observability (query logs, stats, metrics) carries no blast radius and stays freely
+available.
+
+**Generalization — rate a control surface by blast radius, not convenience.** The
+automation-authority principle (move the operation to where the authority lives) says how
+to automate safely; this is its ceiling: some capabilities should not be agent-reachable
+at any scope. Before exposing a mutating tool, ask *what does a confused or injected agent
+do with this at 3am?* If the answer is "silently reroute/deny/expose traffic for everyone",
+it belongs behind SSH, not behind a scope. **Reaching that bar is the prerequisite before
+building any deeper network-control-plus-AI integration** — earn the tier first.
+
+**Corollary — network policy belongs in IaC.** Allow/block lists that live only in an
+appliance are drift the repo cannot see; that invisibility is how a household ad-blocker
+came to block the business's own ad-platform API without anyone knowing (mcp#152).
+
+## DNS conflicts: fix at the narrowest scope that works (2026-07-26)
+
+When a shared DNS policy blocks something one machine legitimately needs, **do not widen
+the shared policy** — override at the narrowest scope, in this order:
+
+1. **Per-machine, per-domain resolver override.** macOS: `/etc/resolver/<domain>` containing
+   `nameserver 1.1.1.1` routes only that domain's lookups off the shared resolver, only on
+   that machine. Zero effect on everyone else, and the machine keeps filtering for
+   everything else. *Gotcha that will fool you:* `dig`/`nslookup` query resolvers directly
+   and IGNORE `/etc/resolver` — they still show the old answer. Verify with `curl` or a
+   browser, which use the system resolver. (Linux equivalent: systemd-resolved per-link
+   domain routing, or a dnsmasq `server=/domain/ip` line.)
+2. **Per-client-group policy on the resolver** (e.g. Technitium's Advanced Blocking app):
+   infrastructure and work devices exempt, family devices keep the blocklist.
+3. **Global allowlist entry — last resort**, and only with the cost stated out loud: it
+   reduces filtering for *every* device on the network.
+
+The reasoning generalizes past DNS: when a shared control blocks one legitimate use, the
+fix is scoped exemption, never a blanket loosening — a global change to satisfy one machine
+silently degrades the protection for everything else.
+
+### Pick the rung from the CONSUMER, not from the domain (2026-07-26)
+
+The ladder above is useless if you ask the wrong question. The instinct is to ask *"is this
+domain legitimate?"* — which is almost always yes, and always argues for rung 3. The right
+question is **"who actually needs this, and does everyone else need it too?"**
+
+Worked example, and the mistake it caught: after the household ad-blocker was found blocking
+X's ad domains, I drafted a **global** allowlist for `ads.x.com` / `analytics.x.com` /
+`ads-api.x.com`. Nik stopped it — *"we want ads blocked for the family network right?"* Both
+things were true at once: the domains are legitimate business infrastructure, **and** a
+global exemption hands the family network X's ad tracking. The blocklist doing its job is
+not a bug to be worked around.
+
+**The same domain can sit on different rungs for different consumers.** Decompose by
+consumer before choosing:
+
+| Consumer | Actually needs | Rung |
+|---|---|---|
+| One human running ad campaigns in a web UI | `ads.x.com`, `analytics.x.com` | **1** — per-machine resolver override on that Mac |
+| Servers doing conversion sync via API | `ads-api.x.com` | **2** — group policy *if* those hosts even resolve through this resolver (often they don't; verify before exempting) |
+| Family devices | nothing | **blocked, unchanged** |
+
+So a single "unblock X ads" request splits into one machine-local override, one
+verify-then-maybe group policy, and one deliberate no-change. **A global allowlist that
+stays empty is the success condition, not an unfinished job** — record rejected candidates
+and the reason in the file so the next person doesn't re-add them.
+
+**Two separations, don't conflate them.** They answer different questions and split along
+different lines:
+
+| Separation | Question it answers | Splits by |
+|---|---|---|
+| **Policy scope** (this section) | who gets the exemption | *who consumes it* — machine / group / everyone |
+| **Config location** ([technical.md](technical.md) → public engine, private config) | who may read the config | *what is publishable* — public repo / private overlay / secret store |
+
+They cut across each other: a machine-scoped exemption may still be private config, and a
+network-wide policy may be perfectly publishable. Deciding one does not decide the other.
+
+## Security review: identify → ticket → hand off (2026-07-27 standard)
+
+**A security reviewer's deliverable is a triaged, verified finding that has REACHED THE WORK
+QUEUE — not a patch.** Reviewers (the nightly/weekly audit agents, `/security-review`, any
+audit pass) are not responsible for remediating what they find. Their job ends at:
+
+1. **Identify** — find it, and adversarially verify it firsthand (attacker-reachable input +
+   unguarded sink, real file:line). Discard what you cannot confirm; a plausible-but-unverified
+   finding costs more than it's worth.
+2. **Triage** — separate real from noise, and rate by **actual exploitability, not theoretical
+   severity**. A dev-only CVE that never enters the bundle is not a P1 because the scanner said
+   "moderate".
+3. **Ticket** — file it in the owning repo with a priority label, self-contained enough to act on
+   without the audit session.
+4. **Hand off** — tell the repo's worker thread the tickets exist and in what order.
+
+**Fixing is optional and never the obligation.** A reviewer MAY land a small, surgical,
+high-confidence fix — that's a bonus. It must never become the reason a finding goes unticketed,
+and a fix that needs design work, touches a funnel under active churn, or can't be verified in
+the reviewer's environment should be *ticketed instead*, with the exact patch recorded in the
+ticket body.
+
+**Why the separation.** Reviewer and worker are different jobs with different context, and
+conflating them loses findings:
+- A reviewer that only writes a dated markdown file on an unpushed audit branch has **no path
+  into the work queue**. It reads as done; nothing is scheduled. *(Lived: the cc-fe baseline of
+  2026-06-26 still had rows #2/#3/#4/#6 untouched on 2026-07-27 — a month — because thirteen
+  audit runs had produced reports and zero tickets. The run that finally filed them surfaced 7
+  real items that had been invisible backlog the whole time.)*
+- Unattended reviewers can't run the full test suite, can't build, and can't judge product
+  blast-radius. That's exactly the context a worker has and a reviewer doesn't.
+- One agent doing both optimizes for what it can safely change, so the *hard* findings — the
+  ones needing design or cross-repo coordination — are the ones that silently rot.
+
+**Ticket contents** — self-contained, actionable without the audit thread: what's wrong, `file:line`,
+why it matters *in this system* (who controls the input, what the attacker gets), the concrete fix
+(name the existing helper/pattern to copy), the traps the worker will hit, and an explicit
+**done-when**. Priority labels are org-level in Gitea (`P0` critical → `P3` minimal) and are set
+**after** creation — the create-issue API takes label IDs, not names, so `create_issue` then
+`set_issue_labels` with names.
+
+**What must NOT go in a ticket.** Tickets are written as if public (rule 16). A finding whose
+*description is itself the disclosure* — a live unrotated credential, an unpatched exploitable
+path with a working recipe — stays out of the tracker and goes to the human directly, with the
+detail left in the access-controlled audit note. "File a ticket" never overrides that.
+
+**The hand-off.** Delivering the list to the worker is part of the job, not an afterthought.
+Unattended runs (scheduled tasks) **cannot message other sessions** — cross-session messaging is
+disabled there — so the hand-off is a paste-ready block in the run's final summary, addressed to
+the repo's worker thread, ordered, with each ticket's one-line "why this order".
+
 ## Where this doc lives
-Canonical: `claude-config/governance/security.md` → `~/.claude/governance/security.md`. Extends the
+Canonical: `operating-canon/governance/security.md` → `~/.claude/governance/security.md`. Extends the
 [Constitution](README.md). Infra/host conventions in [technical.md](technical.md).

@@ -21,8 +21,8 @@ GitHub Copilot's agent mode works well because of a **three-layer prompt archite
 ### 1. Install (machine-level)
 
 ```bash
-git clone <repo-url> ~/claude-config
-cd ~/claude-config
+git clone <repo-url> ~/operating-canon
+cd ~/operating-canon
 ./install.sh
 ```
 
@@ -32,7 +32,7 @@ This sets up `~/.claude/` with the global configuration. Hooks and agents are sy
 
 ```bash
 cd /path/to/your/project
-~/claude-config/init-project.sh
+~/operating-canon/init-project.sh
 ```
 
 This creates a project-level `CLAUDE.md` with auto-detected stack info. Edit it to add your architecture details and conventions.
@@ -180,7 +180,7 @@ Remove or comment out the hook entry in `global/settings.json`. Changes propagat
 One command:
 
 ```bash
-~/claude-config/update.sh
+~/operating-canon/update.sh
 ```
 
 This runs `git pull` and re-applies `install.sh` (idempotent, picks up any new hooks, agents, or MCP servers). Symlinked files (`CLAUDE.md`, `settings.json`, `agents/`, hooks) update automatically; `~/.claude/CLAUDE.local.md` is preserved.
@@ -195,7 +195,7 @@ If your `~/.claude/CLAUDE.md` was created by an earlier version (a regular file,
 ## Uninstalling
 
 ```bash
-cd ~/claude-config
+cd ~/operating-canon
 ./uninstall.sh
 ```
 
@@ -206,8 +206,8 @@ Removes symlinks and restores any backed-up files. Your `~/.claude/CLAUDE.md` is
 For agentic containers or CI environments, run the install non-interactively:
 
 ```bash
-git clone <repo-url> /opt/claude-config
-cd /opt/claude-config
+git clone <repo-url> /opt/operating-canon
+cd /opt/operating-canon
 ./install.sh
 ```
 
@@ -216,7 +216,7 @@ The hooks and configuration work in any environment where Claude Code runs. The 
 ## Structure
 
 ```
-claude-config/
+operating-canon/
 ├── install.sh                  # Machine-level install
 ├── update.sh                   # One-command sync: git pull + install
 ├── uninstall.sh                # Remove global config

@@ -37,4 +37,4 @@ what we build, build what we consult on"). Every piece of content should ladder 
 - [ ] Social-posting automation + attribution standard.
 - [ ] Case-study / testimonial capture process.
 
-Canonical: `claude-config/governance/marketing.md` → `~/.claude/governance/marketing.md`.
+Canonical: `operating-canon/governance/marketing.md` → `~/.claude/governance/marketing.md`.

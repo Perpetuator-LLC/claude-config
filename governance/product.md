@@ -43,4 +43,4 @@ and a matching PM project.
 - [ ] Discovery → validation process (how an idea earns a slot).
 - [ ] Definition-of-Done standard across products.
 
-Canonical: `claude-config/governance/product.md` → `~/.claude/governance/product.md`.
+Canonical: `operating-canon/governance/product.md` → `~/.claude/governance/product.md`.

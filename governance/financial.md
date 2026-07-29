@@ -43,4 +43,4 @@ version + "verify before invoicing." (Past errors propagated into invoices and h
 - [ ] Rate card / pricing standard across engagement types.
 - [ ] Cash-flow / runway tracking surface.
 
-Canonical: `claude-config/governance/financial.md` → `~/.claude/governance/financial.md`.
+Canonical: `operating-canon/governance/financial.md` → `~/.claude/governance/financial.md`.

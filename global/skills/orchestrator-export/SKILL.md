@@ -113,14 +113,19 @@ Hand Nik the one paste-ready block (template below). It bootstraps the skills if
 them, becomes the orchestrator, ingests the master doc, then re-hydrates and drives each worker from
 its own export. **This is the only thing Nik pastes.**
 
+The prompt must include this import-loop rule (three cases, one behavior): *"If THIS session already
+runs an orchestrator loop, keep it and just ingest. Otherwise arm your sweep cron now. Either way,
+check for another live orchestrator session; if one exists, message it to stop its loop and stand
+down — your loop must be running first."*
+
 ## The kickoff prompt (paste-ready template — fill the two dates)
 
 ````
 Skills bootstrap first: if the `/orchestrator`, `/orchestrator-export`, `/export-thread`, or
 `/session-summary` skills aren't available to you, install them from canon —
-`~/projects/claude-config/install.sh` symlinks `~/.claude/skills` → the repo's `global/skills`. If
-`claude-config` isn't on this machine, read each skill body directly at
-`~/projects/claude-config/global/skills/<name>/SKILL.md` and follow it inline. Do not re-author skills
+`~/projects/operating-canon/install.sh` symlinks `~/.claude/skills` → the repo's `global/skills`. If
+`operating-canon` isn't on this machine, read each skill body directly at
+`~/projects/operating-canon/global/skills/<name>/SKILL.md` and follow it inline. Do not re-author skills
 that already exist there.
 
 You are the fleet ORCHESTRATOR (SOP-ORCH-001). Read, in order:

@@ -18,7 +18,7 @@
 #                            --remote   also delete the merged branch on origin
 #   wt help
 #
-# Installed by claude-config at ~/.claude/bin/wt and as the `git wt` alias.
+# Installed by operating-canon at ~/.claude/bin/wt and as the `git wt` alias.
 # Note: "merged" is ancestor-based. Squash-merged branches will show as
 # in-flight (their commits are not ancestors of the default branch); remove
 # those by hand once you have confirmed the PR landed.

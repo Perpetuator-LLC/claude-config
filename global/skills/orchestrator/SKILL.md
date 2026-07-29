@@ -28,6 +28,9 @@ history/archive; the board is the live surface. The hand-off protocol both docs 
 
 1. **Read** SOP-ORCH-001, then the board.
 2. **Re-arm the sweep cadence** — the sweep cron is session-only (SOP-ORCH-001 rule 10); recreate it.
+   **Then retire the predecessor:** once YOUR cron is confirmed armed, `send_message` the outgoing
+   orchestrator session (if one exists) to stop its loop and stand down — clean baton: new loop
+   running BEFORE the old one stops. Retitle the old session "(superseded)".
 3. **Spin up / adopt the crew.** For each stream row in the board, ensure a worker thread exists:
    drive an already-open session (adopt by renaming it to the stream), or emit that row's **kickoff
    block** for the human to open in the repo's directory, or spawn a persistent agent if your

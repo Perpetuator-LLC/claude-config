@@ -24,8 +24,15 @@ description: File a Gitea ticket in the current (or inferred) repo. Invoke on /t
    route each against the existing queue first (G11 route-before-create
    applies to tickets exactly as to documents).
 3. **Draft the issue.**
-   - Title: imperative, concise; prefix `[P0..P3]` only if priority is clear
-     from the request (labels may not exist yet).
+   - Title: imperative, concise. Do NOT encode priority in the title — it
+     goes in the label (below).
+   - **Priority label is MANDATORY on every ticket (2026-07-25):** decide
+     P0–P3 from the request (default **P2** when genuinely unstated — never
+     skip). The create API rejects label NAMES (integer-id only, a known 422),
+     so ALWAYS apply it with `gitea_set_issue_labels` (accepts names,
+     `create_missing: true`) immediately after `gitea_create_issue` — one
+     labeled ticket = create + set_labels, every time. A 422 on labeling is a
+     bug to fix, not a reason to ship an unlabeled ticket.
    - Body: context (why now), the ask, acceptance criteria as checkboxes,
      links to related tickets/docs. **Rule 16: written as if public** — no
      internal IPs, on-box paths, secret-store paths/versions; reference form
