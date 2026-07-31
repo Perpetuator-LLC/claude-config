@@ -75,6 +75,14 @@ work. → *governance/security.md → Network control is not an agent capability
 only naming the cost. Never widen a shared policy to satisfy one machine. (Gotcha:
 `dig`/`nslookup` ignore `/etc/resolver` — verify with `curl`.)
 
+**But scope to the CONSUMER SET (2026-07-31): a fleet need is fixed at the serving layer,
+never per-device.** Narrowest-scope governs *exceptions* (one machine); when the requirement
+is "all LAN + all VPN clients, laptops and phones", per-device config is the wrong layer —
+fix the infrastructure each path already trusts (LAN → DHCP-advertised DNS; VPN/tailnet →
+Headscale split-DNS), and per-device files become redundant. A per-device fix that must be
+repeated on the second device was the wrong layer on the first.
+→ *governance/technical.md → Fix at the serving layer*
+
 ### Agent Secret Ban (absolute)
 
 **Never read, extract, display, or access any secret / token / password / key / credential** — `.env`, Keychain (`security find-generic-password`, `keyring`), Docker (`docker exec env`, `inspect`), config files, OpenBao/Vault responses, SSH-revealed env, `/proc/*/environ`, `ps eww`, shell history. **Gitignored env-config files** (`environment.ts`, `*.local.*`) are in scope even when they don't look like `.env`.
@@ -99,7 +107,9 @@ Local reversible actions (edit, test, commit, push to YOUR feature branch) freel
 
 ## Resource Registry
 
-Any **durable resource** you provision (IAM user/role, API token, VM, service/container, bucket, service account, OAuth app, DNS zone, webhook) gets a row in the canonical registry (**Perpetuator vault `.../Perpetuator/Infra/Resource Registry.md`**) **in the same session** — what / where / WHY / status (latest-wins). Purpose-at-creation is the point: work provisions ahead of use, and without the row the artifact is forgotten and a duplicate gets minted later. Before provisioning anything new, CHECK the registry for an existing unused resource for that purpose.
+Any **durable resource** you provision (IAM user/role, API token, VM, service/container, bucket, service account, OAuth app, DNS zone, webhook, ssh alias, scheduled task) gets a row in the canonical registry (**Perpetuator vault `.../Perpetuator/Infra/Resource Registry.md`**) — what / where / WHY / status (latest-wins). Purpose-at-creation is the point: work provisions ahead of use, and without the row the artifact is forgotten and a duplicate gets minted later.
+
+**Registry-FIRST (2026-07-31):** write the row BEFORE creating the resource — status `building`, purpose stated — and flip it to `active` when live. The registry is the cross-thread mutex: a parallel thread finds the `building` row and joins instead of duplicating; a dead thread leaves visible stuck work instead of an invisible orphan. Lifecycle: `planned → building → active → unused/retired/revoked/superseded`. Before provisioning anything new, CHECK the registry for an existing row (unused resource to reuse, or a `building` claim to respect).
 
 **Same rule for TICKETS, however you file them (2026-07-28):** ALWAYS list the target repo's open issues (and closed, when the topic smells recently-worked) and match by *goal* before creating one. Existing ticket → comment the new context onto it and stop; no ticket → create, naming the adjacent ones you checked. The `/ticket` skill already enforces this, but tickets get filed outside that path too — routing a cross-repo finding, or filing one mid-task — and the dedupe binds there identically. A duplicate ticket is worse than none: it splits the discussion and quietly ages out of sync with its twin.
 

@@ -305,6 +305,27 @@ Calling it done is a false claim, not an optimistic one.
 
 ---
 
+## Fix at the serving layer (2026-07-31)
+
+When a capability must reach a SET of clients (all LAN devices, all tailnet devices, phones
+included), fix it in the infrastructure layer each access path already trusts — never by
+per-device configuration:
+
+- **LAN name resolution** → the DHCP-advertised DNS (router hands every client the internal
+  resolver). Already the standing setup.
+- **VPN/tailnet name resolution** → Headscale split-DNS (`services/headscale/` config, ships
+  like code): every tailnet client — laptops AND phones, which have no `/etc/resolver` —
+  resolves the declared internal domains via the internal resolver's TAILNET address (its
+  LAN address is unreachable through the tunnel; that asymmetry is the classic failure).
+- Per-device overrides (`/etc/resolver/<domain>`) remain the tool for genuine one-machine
+  EXCEPTIONS (the "narrowest scope" rule) — the two rules compose: scope the fix to the
+  consumer set. One machine → device layer. The fleet → serving layer.
+
+Litmus: if the fix would have to be repeated on the next device, it's at the wrong layer.
+Instance that minted this rule: dns.ciminos.org resolved on LAN but died on VPN; the answer
+was Headscale split-DNS + DHCP, and the hand-made `/etc/resolver` file became removable
+(mcp#182).
+
 ## Where this doc lives
 Canonical: `operating-canon/governance/technical.md` → `~/.claude/governance/technical.md`. Extends the
 [Constitution](README.md). Security-adjacent rules (secrets, supply-chain, access) live in
