@@ -187,6 +187,24 @@ recipe contains inline SQL or a `python -c` against a prod service, stop and wri
 instead. Verification counts as interaction — "check how many rows are expired" is a management
 command, not a paste-block of SQL. Ad-hoc commands are for read-only diagnosis only.
 
+## Tofu/Terraform state is remote-or-nothing (2026-08-01 standard)
+
+**Never run a first `tofu apply` against a local state file in an ephemeral checkout.** Agent
+worktrees, scratch dirs, and un-pushed clones get reaped; a `terraform.tfstate` that lived only
+there is gone with them, and the real cloud resources it tracked become unmanaged orphans that can
+then only be retired by hand (strike: `p-synology-worm` state lost to worktree reaping — M5 teardown
+had to be done via console clicks + raw `aws iam` calls, exactly the ad-hoc surgery IaC-first bans).
+
+- **Backend before first apply.** Declaring a remote backend (S3 + lockfile, or the org's standard)
+  is part of scaffolding a new tofu root — the same commit that adds the first resource adds the
+  `backend` block. `tofu init` against local state is acceptable ONLY for a plan-never-apply dry run.
+- **State never lives in git either** — it carries secrets/IDs; the backend, not the repo, is its home.
+- **The litmus at hand-over:** before handing Nik any `tofu apply`, run `tofu init -backend=false
+  -input=false` mentally against the config — if there is no `backend` block, adding one IS the task.
+- **Recovery when state is already lost:** don't recreate — `tofu import` each live resource under a
+  fresh backend-backed root, verified by a no-op plan; until imported, mutations to those resources
+  are break-glass and must be logged in the owning plan doc.
+
 ---
 
 ## Service topology: software/state split (2026-07 standard — the cc-be model)
