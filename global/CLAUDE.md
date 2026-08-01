@@ -68,7 +68,10 @@ control, so a confused or injected agent that rewrites it silently redirects tra
 every device (MITM/exfil) and it looks like ordinary config. Authorization floor: a human,
 on a dev machine, in the tailnet, over SSH. Enforced in code (gateway DNS write tools
 deleted + tests). Hitting that bar is the prerequisite for any deeper network-plus-AI
-work. → *governance/security.md → Network control is not an agent capability*
+work. **Carve-out (Nik 2026-08-01): internal `ciminos.org` A-records in Technitium on
+lestrange MAY be agent-managed, but only from an SSH session on lestrange — never an
+MCP/voice/cron surface; everything else in the class stays banned.**
+→ *governance/security.md → Network control is not an agent capability*
 
 **DNS conflict? Fix at the narrowest scope** — per-machine per-domain override
 (`/etc/resolver/<domain>` on macOS) → per-client-group policy → global allowlist LAST, and

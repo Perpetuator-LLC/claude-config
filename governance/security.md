@@ -290,6 +290,19 @@ scope". The split is the principle: **agents may SEE the network, they may not S
 observability (query logs, stats, metrics) carries no blast radius and stays freely
 available.
 
+### Carve-out — internal `ciminos.org` records via Technitium on lestrange (Nik, 2026-08-01)
+
+**Agents MAY create/update internal split-horizon `ciminos.org` A-records in the Technitium
+DNS server hosted on `lestrange`, gated on an SSH session to lestrange** — not via any MCP
+tool, voice surface, or scheduled agent. Why this is consistent with the rule rather than a
+repeal: the gate stays the SSH tier (the same floor named above — the capability rides an
+authenticated shell on the box, never a promptable tool surface), the scope is the *internal*
+home zone only, and the records are additive host names on a LAN nobody untrusted resolves.
+**Everything else stays banned exactly as written:** public/Cloudflare zone, blocklists/
+allowlists, firewall rules, routing, VPN/tailnet ACLs, and any DNS mutation from an MCP/voice/
+cron surface. Practical note: lestrange currently refuses `BatchMode` SSH, so only interactive
+sessions qualify — that friction is acceptable, not a bug to route around with a new tool.
+
 **Generalization — rate a control surface by blast radius, not convenience.** The
 automation-authority principle (move the operation to where the authority lives) says how
 to automate safely; this is its ceiling: some capabilities should not be agent-reachable
