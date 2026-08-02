@@ -146,6 +146,42 @@ state** — which HOST, which DIRECTORY, which USER, the exact command; never "t
     Secret-bearing prompts stay OUT of the log (`read -rs` reads from the tty, so hidden input never
     reaches tee — but never `echo` a secret into the wrapped group).
 
+## Execution efficiency — run-what-you-can, ≤3-step hand-offs, KPIs (2026-08-01, Nik-stated)
+
+The global `CLAUDE.md` carries the resident rule (*Optimization priority & self-improvement*); the
+mechanics + measures live here.
+
+**Standing optimization priority** (strict; a lower rank never trades a higher):
+**1 correctness · 2 tokens-to-complete · 3 token-frugality.** #2 vs #3: prefer a bigger single turn
+that gets it right first time over a cheap guess that needs three retries — total tokens to the
+*verified result* is what #2 minimizes.
+
+**Run-what-you-can:** attempt every agent-runnable step yourself before composing a hand-off. The
+human section contains ONLY their irreducible parts — secret entry, Touch-ID, SSH-to-live-infra, a
+decision, a credential only they hold, or a harness-gated action you tried and were denied. Handing
+over a step you could have run is a defect: it costs a human round-trip, the most expensive unit.
+(Strike 2026-08-01: handed Nik a `bao kv put` I could attempt myself; should have tried it first and
+handed over only the genuinely blocked part.)
+
+**≤3-step batching:** a hand-off carries at most three human-run steps. The reason is token-economic —
+if step 2 of an 8-step block fails, steps 3–8's output was wasted AND the whole block re-processes on
+correction; three bounds the waste without the context-re-establishment cost of one-at-a-time. Steps
+beyond three wait for the batch to report; fewer than three when steps are risky/irreversible.
+
+**KPIs** (home = Strategy OKR board; draft proposal
+`Engagements/Internal/Strategy/PROPOSAL Agentic Execution Efficiency (OKR).md`):
+
+| KPI | Unit | Dir | What it catches |
+|---|---|---|---|
+| Correctness / rework rate | % | down | the P1 guardrail — a "done" later found wrong |
+| Tokens-per-completed-task | tokens | down | total cost to a verified result |
+| Human round-trips-to-completion | turns | down | the run-what-you-can + ≤3-step payoff |
+| Wasted-output ratio | % | down | output for steps/plans never used (over-batching) |
+| Canon-improvement cadence | count/week | up | the self-improvement loop actually firing |
+
+**Self-improvement loop:** spot an improvement → implement it in the canon immediately (never a passive
+note) → it compounds. The cadence KPI exists so the loop is visible, not aspirational.
+
 ## TODO (fill in / publish)
 - [ ] Meeting cadence + standing-agenda standard per engagement.
 - [ ] Vendor/tool evaluation + registry process.
