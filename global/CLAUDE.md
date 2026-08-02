@@ -134,7 +134,7 @@ repeated on the second device was the wrong layer on the first.
 
 **Why:** anything in your context goes to the API and persists in transcripts/caches — read once, leaks every later turn, unrecoverable.
 
-**Instead:** write a self-contained `read -rs` script → user runs it → user reports the outcome → you continue without ever seeing the secret. Never `cat`/Read a credential-bearing file whole; probe with something that can't emit values (`grep -c`, `grep -o`), and ADD fields via a blind in-place edit (`sed`/`perl -pi`). If that genuinely can't work, stop and explain.
+**Instead:** write a self-contained `read -rs` script → user runs it → user reports the outcome → you continue without ever seeing the secret. Never `cat`/Read a credential-bearing file whole; probe with something that can't emit values (`grep -c`, `grep -o`), and ADD fields via a blind in-place edit (`sed`/`perl -pi`). If that genuinely can't work, stop and explain. **Blind writes MERGE, never `>`-clobber (2026-08-02 strike): a shared multi-entry credential file (`~/.aws/credentials`, `~/.ssh/config`, rclone/kube configs) is someone's only copy of every OTHER entry — redirect-overwriting it to add yours destroyed 15 stored AWS profiles. Render additions to a DEDICATED file (`AWS_SHARED_CREDENTIALS_FILE`-style) or append/patch the one stanza in place; before any overwrite of a file you didn't create this session, `grep -c '^\['` it first and treat >1 entry as someone else's data.**
 
 The rest is procedure — load `governance/security.md` when doing that work:
 - **Never hardcode a credential** in any repo file (incl. throwaway/test); source from env / store / interactive prompt, never on argv. → *Secrets in code*
