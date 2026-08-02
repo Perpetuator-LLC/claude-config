@@ -205,6 +205,31 @@ had to be done via console clicks + raw `aws iam` calls, exactly the ad-hoc surg
   fresh backend-backed root, verified by a no-op plan; until imported, mutations to those resources
   are break-glass and must be logged in the owning plan doc.
 
+## Tofu plan/apply split — agent plans, human applies the planfile (2026-08-02 standard, Nik-stated)
+
+**The agent runs `tofu plan -out=<planfile>` itself — iterating until the plan is exactly right —
+and the human's entire job is one command: `tofu apply <planfile>`.** Never hand over a block where
+the human runs a bare `apply` (or worse, `plan && apply`) and is expected to eyeball the diff at the
+prompt: the human is the *authorizer*, not the *reviewer of last resort*.
+
+- **Why the planfile matters:** `apply <planfile>` executes the byte-exact change set the agent
+  reviewed — tofu refuses the planfile if the state moved underneath it. This structurally prevents
+  the stale-context apply (strike 2026-08-02: a `p-bootstrap` apply run from a checkout on an old
+  branch destroyed a live IAM user and 409'd on two others; a planfile reviewed by the agent, with
+  the human running only `apply`, makes that class impossible).
+- **Plan is agent-runnable.** `tofu plan` is read-only against the cloud; ambient credentials
+  (AWS_PROFILE, rendered credential files) get *used* by the provider, never read into context —
+  the Agent Secret Ban does not apply. Enabling a normally-disabled key (e.g. `p-bootstrap`) is the
+  human's authorization step and comes first; from then on the agent plans, reviews, re-plans.
+- **The agent REVIEWS the plan, not just runs it:** assert the expected counts and name them in the
+  hand-over ("10 add / 0 change / 0 destroy — the 2 destroys you'd see are X, there are none").
+  Any unexpected `destroy` stops the line, never ships in a planfile.
+- **Hand-over shape:** agent output = a committed/scripted plan step + the planfile path + the
+  reviewed summary; human input = enable-key (if gated) → `tofu apply <planfile>` → disable-key.
+  Wrap both sides in the repo's script (`plan.sh` / `deploy.sh`) when the root is used more than once.
+- Composes with the two standards above: remote state makes the planfile trustworthy across
+  checkouts; IaC-first makes the script the only mutation surface.
+
 ---
 
 ## Service topology: software/state split (2026-07 standard — the cc-be model)
