@@ -23,19 +23,36 @@
 set -uo pipefail
 export PATH=/usr/bin:/bin:/usr/sbin:/sbin
 
-VAULTS=(
-  "$HOME/projects/notes-perpetuator"
-  "$HOME/projects/notes-weown"
-  # notes-nik is deliberately NOT here yet: 1.6 GB with ~1190 untracked files and a
-  # .gitignore that only covers sync cache. It needs a media/binary policy (ignore or
-  # LFS) before anything auto-commits it. Add the line once that's decided.
-)
+# --- discovery -------------------------------------------------------------
+# Vaults are DISCOVERED, not listed. Any git repo directly under ~/projects that is
+# an Obsidian vault (has a .obsidian/ directory) is backed up automatically.
+#
+# This is deliberate: the bug this script was written to fix was "a vault was created
+# and nobody remembered to wire it up" (notes-weown sat unpushed from graduation on
+# 2026-07-29 until 2026-08-02). A hardcoded list reproduces that failure every time a
+# vault is graduated. Discovery means the next one is covered the moment it exists.
+#
+# Opt out by dropping a `.no-vault-backup` file in the vault root (put the reason
+# inside it). Large first commits are refused by the size guard below rather than
+# silently committed — so discovery can never blindly swallow an unprepared repo.
 
-# Test hook: colon-separated repo paths override the list above, so the script can be
-# exercised against throwaway repos without touching a real vault.
-if [[ -n "${VAULT_BACKUP_TARGETS:-}" ]]; then
-  IFS=':' read -r -a VAULTS <<< "$VAULT_BACKUP_TARGETS"
-fi
+VAULT_PARENT="${VAULT_BACKUP_PARENT:-$HOME/projects}"
+MAX_FILES="${VAULT_BACKUP_MAX_FILES:-750}"
+MAX_MB="${VAULT_BACKUP_MAX_MB:-250}"
+
+discover_vaults() {
+  local d
+  for d in "$VAULT_PARENT"/*/; do
+    d="${d%/}"
+    [[ -d "$d/.git" ]] || continue
+    [[ -d "$d/.obsidian" ]] || continue
+    if [[ -e "$d/.no-vault-backup" ]]; then
+      echo "  $(basename "$d"): SKIP — .no-vault-backup present" >&2
+      continue
+    fi
+    printf '%s\n' "$d"
+  done
+}
 
 LOG="${VAULT_BACKUP_LOG:-$HOME/Library/Logs/vault-backup.log}"
 mkdir -p "$(dirname "$LOG")"
@@ -46,6 +63,18 @@ fi
 exec >> "$LOG" 2>&1
 
 echo "════ vault-backup $(date -u +%FT%TZ)"
+
+# Discovery runs AFTER the log redirect so opt-out skips land in the log, not the terminal.
+# Test hook: colon-separated repo paths bypass discovery, so the script can be
+# exercised against throwaway repos without touching a real vault.
+if [[ -n "${VAULT_BACKUP_TARGETS:-}" ]]; then
+  IFS=':' read -r -a VAULTS <<< "$VAULT_BACKUP_TARGETS"
+else
+  VAULTS=()
+  while IFS= read -r line; do VAULTS+=("$line"); done < <(discover_vaults)
+fi
+
+[[ ${#VAULTS[@]} -gt 0 ]] || echo "  (no vaults discovered under $VAULT_PARENT)"
 
 for V in "${VAULTS[@]}"; do
   name=$(basename "$V")
@@ -73,6 +102,27 @@ for V in "${VAULTS[@]}"; do
     echo "  $name: clean, nothing to commit"
   else
     n=$(git -C "$V" diff --cached --name-only | wc -l | tr -d ' ')
+
+    # --- size guard -------------------------------------------------------
+    # An unprepared vault (no media policy, a stray .venv, an un-ignored export)
+    # must not be swallowed whole by an automated commit. Refuse and say so.
+    # Once the first big commit is made deliberately by hand, increments are small
+    # and this never fires again. Override per-vault with .vault-backup-allow-large.
+    if [[ ! -e "$V/.vault-backup-allow-large" ]]; then
+      mb=$(git -C "$V" diff --cached --name-only -z | xargs -0 -I{} stat -f%z "$V/{}" 2>/dev/null \
+            | awk '{s+=$1} END {printf "%.0f", s/1048576}')
+      mb=${mb:-0}
+      if (( n > MAX_FILES )) || (( mb > MAX_MB )); then
+        echo "  $name: REFUSED — staged $n file(s) / ${mb} MB exceeds guard (${MAX_FILES} files / ${MAX_MB} MB)."
+        echo "        An unreviewed bulk commit is almost always a missing .gitignore."
+        echo "        Review with:  git -C $V status --short | head -40"
+        echo "        Then either fix .gitignore, or make the first commit by hand,"
+        echo "        or bypass permanently:  touch $V/.vault-backup-allow-large"
+        git -C "$V" reset -q   # unstage only; working tree is left untouched
+        continue
+      fi
+    fi
+
     if git -C "$V" commit -q -m "vault backup (timer): $(date '+%Y-%m-%d %H:%M:%S')"; then
       echo "  $name: committed $n file(s)"
     else
