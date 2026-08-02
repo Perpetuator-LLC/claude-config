@@ -37,6 +37,16 @@ This file is the THIN, always-resident **tripwire layer**: enough to keep you fr
 7. **Iterate** — finish everything; change strategy after 3 failed attempts on one file; stop only if truly blocked.
 8. **Verify** — re-read the request, confirm it's fully satisfied; add tests if coverage is thin; mark every plan item done/skipped/blocked.
 
+## Unattended runs: deliver to the FORGE, never to a summary (2026-08-02)
+
+**A scheduled/unattended run has no reader.** Cross-session messaging (`send_message`) is disabled in scheduled-task runs and remote-dispatched trees — and it stays disabled even when the human joins the session mid-run, because the session is flagged unattended at birth. So a hand-off addressed to another thread CANNOT be delivered as a message, and **a "paste-ready block" at the end of the run summary is not delivery** — it is a note left in a room nobody enters.
+
+**The rule: any routine whose output is meant for another agent, thread, or human writes it to a DURABLE, POLLED channel — the forge.** A ticket, or a comment on the ticket that owns the work (dispatch/queue ordering goes on the coordinating epic; per-finding detail goes on its own ticket). The run summary is a *receipt* of what was already landed, never the artifact itself. This extends the security-audit canon — *a report on an unpushed branch is not a hand-off; nothing is scheduled until a ticket exists* — with its sibling: **an instruction in a summary is not a dispatch until it is on a ticket.**
+
+Applies to EVERY scheduled task, not just security audits (strike 2026-08-02: all four cc-be/cc-fe security routines said "you cannot message other sessions — end your summary with a PASTE-READY block", so every weekly dispatch died unread until Nik hand-carried it).
+
+**Writing a new routine:** if its deliverable is "tell someone something", its DONE condition is a forge URL, not a formatted paragraph.
+
 ## Autonomy
 
 Keep going until the request is fully resolved. Act rather than ask when you can proceed; prefer doing useful work over requesting info. Only yield when solved or truly blocked.
