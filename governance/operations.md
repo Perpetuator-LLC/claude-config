@@ -182,6 +182,47 @@ beyond three wait for the batch to report; fewer than three when steps are risky
 **Self-improvement loop:** spot an improvement → implement it in the canon immediately (never a passive
 note) → it compounds. The cadence KPI exists so the loop is visible, not aspirational.
 
+## Hand the human a SCRIPT, not steps — self-logging by design (2026-08-02, Nik-stated)
+
+When the human must run something, the deliverable is **one committed script invoked by one line**
+(`bash ~/projects/.../thing.sh`), not a pasted block of commands — proven by the vault-store
+migration (318 files / 839 MB: one line for Nik; the script carried rsync + sha256 verify + delete +
+manifest). Why it wins on every rank:
+
+- **Traceable** — committed beside the work; what ran is exactly what's in git, reviewable later.
+- **Self-logging** — the script writes its evidence to a FILE (manifest, log, TSV) that the agent
+  reads back itself, extracting only the parts it cares about. The human never hand-carries
+  terminal output into chat, and big outputs never enter context wholesale (rank 3).
+- **Verifiable mid-flight** — the agent polls the artifact (`wc -l` a manifest) while the human's
+  terminal runs; no "paste me the output so far".
+- **Idempotent + fail-safe** by construction (checksum-before-delete, guards) — properties a pasted
+  block can't reliably carry.
+
+Mechanics: script lives in the owning repo (committed BEFORE the human runs it); writes a
+machine-readable progress artifact from the first seconds (a silent multi-minute script is a
+hand-off defect — the human can't tell hung from working; strike 2026-08-02: the migrate script
+printed nothing until done and Nik asked "is it hung?"); prints an explicit end-state summary; the
+agent reads the artifact, never asks for the scrollback. The `## Command hand-off format` rules
+(PROMPTS line, ► header, zsh-safety) still bind the one-line invocation.
+
+## Act → verify, every action (2026-08-02, Nik-stated)
+
+**Every operation is a pair: do the thing, then verify it had the effect you expected** — with an
+independent check, not the action's own exit code. This is the per-action form of Workflow #8
+(verify the whole task) and it prevents churn: a wrong assumption caught in 5 seconds costs one
+probe; caught three steps later it costs the whole chain (rank 2+3).
+
+- Wrote a file → probe the property that matters (exec bit, lint, parse), not "no error".
+- Committed → `git show --stat HEAD` (nothing stray rode along). Pushed → ahead/behind is `0 0`.
+- Moved data → checksum/spot-check at the destination AND absence at the source.
+- Installed a job/service → force a run and read its output (`launchctl kickstart` + log).
+- Claimed a fix → re-run the failing case, watch it pass.
+- **Verify the CLAIM, not the vibe** (2026-08-02 strike: Nik saw an image render and concluded the
+  symlink worked — but that file had never moved; the verifying probe is "a MOVED file renders").
+
+Cheap-probe rule: the verify step should be the smallest observation that would catch the likely
+failure (`grep -c`, `stat`, one-line probe) — verification is not a second full pass.
+
 ## TODO (fill in / publish)
 - [ ] Meeting cadence + standing-agenda standard per engagement.
 - [ ] Vendor/tool evaluation + registry process.
