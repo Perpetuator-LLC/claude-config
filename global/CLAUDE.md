@@ -141,7 +141,7 @@ repeated on the second device was the wrong layer on the first.
 The rest is procedure — load `governance/security.md` when doing that work:
 - **Never hardcode a credential** in any repo file (incl. throwaway/test); source from env / store / interactive prompt, never on argv. → *Secrets in code*
 - **Never ask the human for a secret twice** — store-first, prompt-fallback, write-back; consume in-process via command substitution; never send them to a UI a logged-in CLI could read. → *Ask-once provisioning*
-- **Credential-at-rest**: the credential that GRANTS access never sits plaintext at rest (off-box / biometric-gated / LUKS / ephemeral). → *Credential-at-rest gating*
+- **Credential-at-rest**: the credential that GRANTS access never sits plaintext at rest (off-box / biometric-gated / LUKS / ephemeral). **This binds what I PROVISION and DOCUMENT, not only what I handle (Nik, 2026-08-02):** a service admin password I set up goes in the store and is injected at runtime — an on-box plaintext file is a DEFECT to fix or ticket, `chmod 600` is NOT a control, and a **Resource Registry row must name the store path, never an on-box credential file** (a row that names a plaintext path normalizes the violation — that is how the Technitium `admin.pass` survived three weeks). Finding one is a finding: fix it same-turn in your lane, ticket it otherwise. → *Credential-at-rest gating*
 - **Found a live hardcoded secret**: mint-before-revoke rotation order; never harvest an admin token from a remote `.env`. → *Found a hardcoded secret*
 - **Leak detection**: pre-commit + CI gitleaks, same pinned version.
 

@@ -145,6 +145,33 @@ Keep each in one of four states:
 deliberately, then drop it. The role in your shell prompt (Technical → host naming) reflects this.
 **Litmus:** if it's needed to bring the store or a host back from cold, it can't live *in* the store.
 
+### This binds what I PROVISION and DOCUMENT, not only what I handle (Nik, 2026-08-02)
+
+The four states above were read as rules about *my* handling of a credential in flight. They are
+equally rules about the **posture I leave behind**. Three amendments, each from a real miss:
+
+- **A service admin credential I provision goes in the store and is injected at runtime — a
+  plaintext file on the host is a DEFECT, not a design.** Docker images that accept
+  `*_PASSWORD_FILE` make the plaintext file the *documented* path; that is the vendor's
+  convenience, not our posture. Use the store + injector (the `openbao_exec` pattern) and, where a
+  file is genuinely unavoidable, it is short-lived, generated at start, and removed after read.
+- **`chmod 600` is not a control.** It survives nothing that matters — host compromise, a backup
+  or snapshot, an off-box sync, a careless `tar`. Mode bits are hygiene on top of a control, never
+  the control. (Same defect class as the fleet's "a wrong answer wearing the shape of a right one":
+  600 *looks* protective, and its presence in a note reads as due diligence.)
+- **A registry row naming a plaintext credential path NORMALIZES the violation** — that is how this
+  one survived three weeks. The Resource Registry records *what/where/why/status*; where a
+  credential lives is recorded as **the store path** (`secret/platform/<x>`), never as an on-box
+  file path. Encountering a row that names a plaintext path is a FINDING: fix it in the same turn
+  if it is your lane, ticket it to the owner if it is not — do not copy it forward.
+
+**Strike (2026-08-02, Technitium):** the DNS admin password sat plaintext at
+`/mnt/storage1/technitium/admin.pass` (mode 600) since 2026-07-11, consumed by the compose file and
+a daily cron, and the registry row documented it approvingly. Nik: *"keeping secrets like DNS in
+files is a huge security risk especially in the clear."* The credential controls the resolution
+layer beneath every other control — the exact blast radius the network-control rule exists to
+protect.
+
 ---
 
 ## Found a hardcoded secret — rotation order matters
