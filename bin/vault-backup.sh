@@ -96,35 +96,46 @@ for V in "${VAULTS[@]}"; do
   branch=$(git -C "$V" symbolic-ref --short -q HEAD) || {
     echo "  $name: SKIP — detached HEAD"; continue; }
 
-  git -C "$V" add -A || { echo "  $name: FAIL — git add"; continue; }
+  # --- size guard: MEASURED BEFORE STAGING --------------------------------
+  # This must run before `git add`, not after. Staging writes every file's blob
+  # into .git/objects, and `git reset` only unstages — it does not delete those
+  # objects. Guarding after the add therefore leaves the entire refused payload
+  # behind as loose garbage. Observed in the wild on notes-nik: .git grew from
+  # 624 MB to 916 MB because refused runs had already written ~1 GB of blobs.
+  # Measuring first means a refused vault is never touched at all.
+  #
+  # An unprepared vault (no media policy, a stray .venv, an un-ignored export)
+  # must not be swallowed whole by an automated commit. Once the first big commit
+  # is made deliberately by hand, increments are small and this never fires again.
+  # Override per-vault with .vault-backup-allow-large.
+  pending=$( { git -C "$V" ls-files --others --exclude-standard -z
+               git -C "$V" ls-files --modified -z; } | tr -dc '\0' | wc -c | tr -d ' ')
 
-  if git -C "$V" diff --cached --quiet; then
+  if (( pending == 0 )); then
     echo "  $name: clean, nothing to commit"
   else
-    n=$(git -C "$V" diff --cached --name-only | wc -l | tr -d ' ')
-
-    # --- size guard -------------------------------------------------------
-    # An unprepared vault (no media policy, a stray .venv, an un-ignored export)
-    # must not be swallowed whole by an automated commit. Refuse and say so.
-    # Once the first big commit is made deliberately by hand, increments are small
-    # and this never fires again. Override per-vault with .vault-backup-allow-large.
     if [[ ! -e "$V/.vault-backup-allow-large" ]]; then
-      mb=$(git -C "$V" diff --cached --name-only -z | xargs -0 -I{} stat -f%z "$V/{}" 2>/dev/null \
+      mb=$( { git -C "$V" ls-files --others --exclude-standard -z
+              git -C "$V" ls-files --modified -z; } \
+            | tr '\0' '\n' \
+            | while IFS= read -r f; do [ -f "$V/$f" ] && stat -f%z "$V/$f"; done \
             | awk '{s+=$1} END {printf "%.0f", s/1048576}')
       mb=${mb:-0}
-      if (( n > MAX_FILES )) || (( mb > MAX_MB )); then
-        echo "  $name: REFUSED — staged $n file(s) / ${mb} MB exceeds guard (${MAX_FILES} files / ${MAX_MB} MB)."
+      if (( pending > MAX_FILES )) || (( mb > MAX_MB )); then
+        echo "  $name: REFUSED — $pending pending file(s) / ${mb} MB exceeds guard (${MAX_FILES} files / ${MAX_MB} MB). Nothing was staged."
         echo "        An unreviewed bulk commit is almost always a missing .gitignore."
         echo "        Review with:  git -C $V status --short | head -40"
         echo "        Then either fix .gitignore, or make the first commit by hand,"
         echo "        or bypass permanently:  touch $V/.vault-backup-allow-large"
-        git -C "$V" reset -q   # unstage only; working tree is left untouched
-        continue
+        continue          # nothing staged, nothing written — the repo is untouched
       fi
     fi
 
-    if git -C "$V" commit -q -m "vault backup (timer): $(date '+%Y-%m-%d %H:%M:%S')"; then
-      echo "  $name: committed $n file(s)"
+    git -C "$V" add -A || { echo "  $name: FAIL — git add"; continue; }
+    if git -C "$V" diff --cached --quiet; then
+      echo "  $name: clean, nothing to commit"
+    elif git -C "$V" commit -q -m "vault backup (timer): $(date '+%Y-%m-%d %H:%M:%S')"; then
+      echo "  $name: committed $pending file(s)"
     else
       echo "  $name: FAIL — git commit"; continue
     fi
