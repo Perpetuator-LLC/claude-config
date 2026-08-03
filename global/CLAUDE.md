@@ -110,9 +110,11 @@ control, so a confused or injected agent that rewrites it silently redirects tra
 every device (MITM/exfil) and it looks like ordinary config. Authorization floor: a human,
 on a dev machine, in the tailnet, over SSH. Enforced in code (gateway DNS write tools
 deleted + tests). Hitting that bar is the prerequisite for any deeper network-plus-AI
-work. **Carve-out (Nik 2026-08-01): internal `ciminos.org` A-records in Technitium on
-lestrange MAY be agent-managed, but only from an SSH session on lestrange — never an
-MCP/voice/cron surface; everything else in the class stays banned.**
+work. **Carve-out (Nik 2026-08-02, supersedes the ciminos.org-only 2026-08-01 version): the
+ban is DNS mutation via any PROMPTABLE surface (MCP/voice/cron — tools deleted). Over SSH,
+DNS settings on our Technitium (lestrange) — records, blocklists, blocking toggles — MAY be
+agent-changed: SSH means the agent is on Nik's machine with his keys and he is present to
+watch. Firewall/routing/VPN-ACLs stay human-only on every surface.**
 → *governance/security.md → Network control is not an agent capability*
 
 **DNS conflict? Fix at the narrowest scope** — per-machine per-domain override

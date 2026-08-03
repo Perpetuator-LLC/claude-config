@@ -290,17 +290,21 @@ scope". The split is the principle: **agents may SEE the network, they may not S
 observability (query logs, stats, metrics) carries no blast radius and stays freely
 available.
 
-### Carve-out — internal `ciminos.org` records via Technitium on lestrange (Nik, 2026-08-01)
+### Carve-out — DNS settings over SSH (Nik, restated 2026-08-02; supersedes the 2026-08-01 `ciminos.org`-only version)
 
-**Agents MAY create/update internal split-horizon `ciminos.org` A-records in the Technitium
-DNS server hosted on `lestrange`, gated on an SSH session to lestrange** — not via any MCP
-tool, voice surface, or scheduled agent. Why this is consistent with the rule rather than a
-repeal: the gate stays the SSH tier (the same floor named above — the capability rides an
-authenticated shell on the box, never a promptable tool surface), the scope is the *internal*
-home zone only, and the records are additive host names on a LAN nobody untrusted resolves.
-**Everything else stays banned exactly as written:** public/Cloudflare zone, blocklists/
-allowlists, firewall rules, routing, VPN/tailnet ACLs, and any DNS mutation from an MCP/voice/
-cron surface. Practical note (diagnosed 2026-08-01): the "lestrange refuses BatchMode" symptom is NOT the
+**Nik's rule, stated directly: the ONLY ban is DNS changes via MCP — and those tools are
+deleted. Over SSH, agents MAY change our DNS settings** (Technitium on `lestrange`: records,
+blocklists/allowlists, blocking toggles, settings). His rationale, verbatim in spirit: an SSH
+session means the agent is *on his machine with his SSH keys, and he is present to watch* —
+presence + key custody + a reviewable shell is the authorization, and it is exactly the
+"human, on a dev machine, inside the tailnet, over SSH" floor named above. The earlier
+carve-out (2026-08-01) limited this to internal `ciminos.org` A-records; **that scope limit is
+lifted for DNS settings generally**. Still banned, unchanged: **any** DNS mutation from a
+promptable surface (MCP tool, voice, chat-triggered API call, scheduled/cron agent), and the
+rest of the network-control class — firewall rules, routing, VPN/tailnet ACLs — stays
+human-only on every surface. The SSH-tier gate is the whole point: the capability rides an
+authenticated shell whose key custody and visibility belong to Nik, never a tool surface
+untrusted text can reach. Practical note (diagnosed 2026-08-01): the "lestrange refuses BatchMode" symptom is NOT the
 server — the SSH key is a **Secretive Secure-Enclave key requiring Touch ID per signature**
 (Doctrine L1, by design), so a headless BatchMode connect stalls at the sign step. The
 sanctioned agent path is the already-configured **ControlMaster mux** (`Host *`:
