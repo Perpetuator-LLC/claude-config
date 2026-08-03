@@ -135,13 +135,85 @@ You are the fleet ORCHESTRATOR (SOP-ORCH-001). Read, in order:
 4. Engagements/Internal/Journal/<YYYYMM>/Threads/<date>-FLEET-MIGRATION.md  (this migration bundle)
 
 Then MIGRATE THE CREW:
-- Provision the Standing Crew Routines (list_scheduled_tasks → create any missing from the board table).
+- RECONCILE THE STANDING ROUTINES against the migration doc's Routines table, using the resolution
+  matrix in `/orchestrator-export` (ADD missing · UPDATE stale · ADOPT-UPWARD newer-here, PRing it
+  back to canon · INVESTIGATE unknown-here then adopt-or-stop · STOP tombstoned · LEAVE ALONE
+  host-local · LEAVE DORMANT inactive-engagement). Never delete a routine — disarm and tombstone.
+  Then verify: `list_scheduled_tasks` shows every portable routine armed, and each has fired once.
+  A routine that migrated but never fired is a failed migration.
 - For EACH stream in the migration doc: spin up / adopt its worker thread in the listed cwd, hand that
   worker its OWN two export links (continuation + reasoning) as its starting context, and dispatch its
   ONE current task (rule 18) via a cross-session message + a ticket comment (rule 2).
 - Verify every "done" three ways (ticket + git + CI) before reassigning (rule 1). Never implement.
 - Surface the Nik-gated stack from the board — the only list Nik acts on.
 ````
+
+## Standing Routines are migration payload (2026-08-02, Nik-stated)
+
+A crew is its threads **and** the routines that run without them. Migrate only threads and the fresh
+boss inherits a crew that has silently stopped doing everything nightly — silently, because a routine
+that never fires emits nothing. **Every skill and scheduled task is migration payload.**
+
+### The structural defect this closes (verified 2026-08-02)
+
+`~/.claude/skills` is a **symlink into `operating-canon/global/skills/`** — skill bodies are versioned
+and travel with a `git clone` + `install.sh`. **`~/.claude/scheduled-tasks/` is a plain directory**
+with no canon backing and no handling in `install.sh`/`update.sh`; on 2026-08-02 it held **14 tasks
+that existed on exactly one Mac**. The *bodies* migrate and the *schedules* do not: a new machine gets
+every skill and fires none of them. Until `scheduled-tasks/` is versioned the same way, step 4b below
+is the only thing between a migration and a silently dead crew.
+
+### Routine passport (what makes a routine classifiable)
+
+A destination boss cannot resolve a routine it cannot identify. Every routine — skill or scheduled
+task — carries these frontmatter keys; classify-by-guessing is the failure this prevents:
+
+| Key | Meaning |
+|---|---|
+| `scope` | `portable` (belongs on every host) · `host-local` (this machine/config only — never adopted, never deleted elsewhere) · `engagement:<name>` (travels only with that engagement) |
+| `canon_origin` | path in `operating-canon`, or `local` if never promoted |
+| `canon_version` | content hash or date of the canon body it was installed from |
+| `schedule` | the cron line, so the schedule migrates with the body |
+| `retired` | date + superseding routine, if it is a tombstone (e.g. `nightly-tuleap-reconcile`) |
+
+### Step 4b — Routine inventory (runs alongside the per-thread exports)
+
+Enumerate **both halves** and diff them against canon:
+```bash
+ls ~/.claude/scheduled-tasks/                  # schedules — NOT versioned today
+ls ~/projects/operating-canon/global/skills/   # bodies — versioned
+```
+plus `list_scheduled_tasks` for what is actually **armed**. A body on disk with no live schedule is a
+third state and the most common silent failure. Record the union in the master migration doc as a
+**Routines table**: name · scope · schedule · canon path · armed? · last successful run.
+
+### The resolution matrix (what the destination boss does with each routine)
+
+Every routine lands in exactly one cell. **The default is never "copy it".**
+
+| At destination | In migration set | Resolution |
+|---|---|---|
+| missing | present, `scope: portable` | **ADD** — install from canon, arm the schedule, verify it fires once |
+| present, older `canon_version` | present, newer | **UPDATE** — re-point to canon; keep any host-local config file beside it |
+| present, newer `canon_version` | present, older | **ADOPT UPWARD** — the destination has the better body; PR it back into `operating-canon` *before* the migration doc closes, or the improvement dies here |
+| present | absent, canon has no record | **INVESTIGATE → adopt or stop** — either a local invention worth promoting (`scope: portable`, PR to canon) or an orphan. Never auto-delete |
+| present, `retired:` set | either | **STOP** — disarm the schedule, keep the tombstone body so a stale schedule fails harmlessly (`nightly-tuleap-reconcile` is the reference tombstone) |
+| present, `scope: host-local` | either | **LEAVE ALONE** — do not adopt, delete, or promote. Record it as host-local so the *next* migration doesn't re-litigate it |
+| present, `scope: engagement:<x>` | engagement not active here | **LEAVE DORMANT** — keep the body, do not arm the schedule |
+
+Two rules that make the matrix safe:
+- **Never delete a routine during a migration.** Disarm and tombstone; deletion is a separate,
+  deliberate act with a soak (SOP-GOV-004). A migration that deletes is unrecoverable.
+- **Adoption is bidirectional.** A migration is exactly when host-local improvements get promoted to
+  canon. If the doc closes with a destination routine canon has never seen and nobody decided about,
+  that is a defect — the next migration silently drops it.
+
+### Acceptance test
+
+The migration is done when, at the destination, `list_scheduled_tasks` shows every `scope: portable`
+routine **armed**, each has **fired once successfully**, and every host-local/dormant/tombstoned
+routine is named in the doc with its reason. **A routine that migrated but never fired is a failed
+migration** — it fails silently, so it must be tested, never assumed.
 
 ## Relationship to the other skills (don't reinvent — orchestrate)
 - **`/export-thread`** — the per-thread reasoning renderer. This skill fans it across the fleet (step 3).

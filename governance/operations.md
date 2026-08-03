@@ -223,6 +223,52 @@ probe; caught three steps later it costs the whole chain (rank 2+3).
 Cheap-probe rule: the verify step should be the smallest observation that would catch the likely
 failure (`grep -c`, `stat`, one-line probe) — verification is not a second full pass.
 
+## Routines are infrastructure — they migrate, or the crew silently dies (2026-08-02, Nik-stated)
+
+**Every scheduled task and skill is migration payload, equal to threads and tickets.** A migration
+that carries threads but not routines hands the destination a crew that has stopped doing everything
+nightly — and it fails *silently*, because a routine that never fires emits nothing to notice.
+
+**Verified defect (2026-08-02):** `~/.claude/skills` is a symlink into `operating-canon` (versioned,
+portable ✅) but **`~/.claude/scheduled-tasks/` is a plain directory** with no canon backing and no
+handling in `install.sh`/`update.sh` — 14 tasks existing on exactly one Mac. Bodies migrate, schedules
+do not. Until that is fixed, every migration must inventory schedules by hand.
+
+Two durable rules:
+
+1. **A routine declares its own portability.** Frontmatter carries `scope`
+   (`portable` · `host-local` · `engagement:<name>`), `canon_origin`, `canon_version`, `schedule`, and
+   `retired:` for tombstones. Without these the destination can only guess, and guessing either drops
+   work or clones machine-specific junk onto every host.
+2. **Reconcile, never copy.** At the destination each routine resolves to exactly one of: **ADD**
+   (missing + portable) · **UPDATE** (stale) · **ADOPT UPWARD** (destination is newer → PR it back to
+   canon *before* the migration closes) · **INVESTIGATE → adopt or stop** (present here, unknown to
+   canon) · **STOP** (tombstoned — disarm, keep the body) · **LEAVE ALONE** (host-local) · **LEAVE
+   DORMANT** (inactive engagement). **Never delete during a migration** — disarm and tombstone; a
+   deleting migration is unrecoverable. **Adoption is bidirectional**: migration is exactly when
+   host-local improvements get promoted, and an undecided destination routine is a defect.
+
+Acceptance is behavioral, not documentary: every portable routine **armed and fired once** at the
+destination. Full matrix + inventory procedure: `global/skills/orchestrator-export/SKILL.md`.
+
+## "Deliver to the forge" assumes the forge is REACHABLE (2026-08-02)
+
+The *Unattended runs* rule — deliver to a durable, polled channel, never a run summary — has a
+failure mode it did not name. On 2026-08-02 the nightly ingest found `mcp.perpetuator.io` returning
+**502** while `git.perpetuator.io` answered **200**: the forge was healthy but every `gitea_*` tool
+routes through the gateway, so the routine had **no durable delivery channel at all**. Separately, a
+scheduled run **cannot complete an interactive OAuth flow**, so an OAuth-gated MCP entry is
+structurally unusable unattended even when the service is up (the fix is M2M auth — the gateway
+already supports OpenBao AppRole → Transit-signed JWT).
+
+So an unattended routine must:
+- **Probe the delivery channel before claiming delivery** (act → verify, above). "Filed a ticket" is
+  a claim; an unreachable gateway makes it false.
+- **Record the failure where the work lives** — `work_item_sync.status: pending` in the *entry*, never
+  in a log file — so a later run can find and reconcile it.
+- **Make the outage the run's headline**, not a footnote. An undelivered finding plus an unread
+  summary is lost work, which is the exact outcome the forge rule exists to prevent.
+
 ## TODO (fill in / publish)
 - [ ] Meeting cadence + standing-agenda standard per engagement.
 - [ ] Vendor/tool evaluation + registry process.
