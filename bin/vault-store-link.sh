@@ -44,7 +44,12 @@ for d in "$VAULT_PARENT"/*/; do
       echo "$name: _store repointed $current → $target"
     fi
   elif [[ -e "$link" ]]; then
-    echo "$name: _store exists but is NOT a symlink — refusing to touch it"; rc=1
+    # Usual cause: the NAS was unmounted and Obsidian (or a drag-drop) created a real
+    # _store/ dir, which may now hold files that never reached the NAS. Never delete it.
+    echo "$name: _store exists but is NOT a symlink — refusing to touch it."
+    echo "$name:   likely stranded attachments from an offline session; merge by hand:"
+    echo "$name:     rsync -av --checksum '$link/' '$target/' && rm -rf '$link'  # then re-run me"
+    rc=1
   else
     ln -s "$target" "$link"
     echo "$name: _store created → $target"

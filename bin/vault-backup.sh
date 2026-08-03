@@ -64,6 +64,13 @@ exec >> "$LOG" 2>&1
 
 echo "════ vault-backup $(date -u +%FT%TZ)"
 
+# Self-heal the vault-store symlinks first (Sovereign Data Architecture §2): if a
+# vault has a .vault-store config but its _store link is missing/stale (fresh clone,
+# new machine), repair it here so attachments keep landing on the NAS. Best-effort —
+# an unmounted NAS just logs and moves on; the backup itself never depends on it.
+LINKER="$(dirname "${BASH_SOURCE[0]}")/vault-store-link.sh"
+[[ -x "$LINKER" ]] && bash "$LINKER" 2>&1 | sed 's/^/  [store] /'
+
 # Discovery runs AFTER the log redirect so opt-out skips land in the log, not the terminal.
 # Test hook: colon-separated repo paths bypass discovery, so the script can be
 # exercised against throwaway repos without touching a real vault.
