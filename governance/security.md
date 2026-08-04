@@ -174,6 +174,41 @@ protect.
 
 ---
 
+## Consolidate credentials only within ONE authorization model (2026-08-04)
+
+**Credential consolidation is safe only where every consumer asks the SAME QUESTION of the
+token.** Two secrets can look identical — same format, same repo, same holder — and still be
+un-mergeable, because they are checked by different mechanisms:
+
+| Secret | What the checker asks |
+|---|---|
+| `REGISTRY_TOKEN` | *does this token's identity have permission on the repo?* |
+| `RELEASE_BOT_TOKEN` | *is this token's identity the NAMED user on the protected-tag allowlist?* |
+
+A consolidated token **passes every permission check and is still rejected by name.** Permission
+is a property of the grant; allowlisting is a property of the identity — and no amount of scope
+fixes the wrong identity.
+
+**Strike (2026-08-04, cc-be):** a well-intentioned rotation seeded one consolidated human PAT
+into both secrets. It satisfied the registry, and it silently **broke the next release**: `v*`
+is protected with an allowlist of exactly one user (`perpetuator-release-bot`), so the tag push
+would be refused for a token that has every permission it needs. The consolidation ticket had to
+carve `RELEASE_BOT_TOKEN` out explicitly — *a consolidation plan is incomplete until it names what
+it must NOT absorb.*
+
+**Before merging two credentials, write down the checker for each.** If one is a named-identity
+allowlist, an OAuth subject, an account-scoped quota, or anything else keyed to *who* rather than
+*what is granted*, it does not consolidate.
+
+### Corollary — order release steps so a refused credential fails SAFE
+
+The same incident exposed an ordering asymmetry worth copying deliberately: cc-fe's deploy job
+declares `needs: [release]`, so the **tag is created before anything ships** — a refused tag push
+stops the release with nothing deployed. cc-be tags **after** deploy and health check, so the same
+refusal yields a *half-release*: production is live, untagged — and the tag is what keeps the
+release commit from being garbage-collected. **Put the step that can be refused by an external
+authority FIRST**, so its failure costs nothing but a retry.
+
 ## Found a hardcoded secret — rotation order matters
 1. Verify it's **live** (dead = no rotation). 2. Find every runtime consumer. 3. **Mint the
 replacement BEFORE revoking** (keeps a fallback). 4. Update consumers (push to store, bounce,
