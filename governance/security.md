@@ -317,6 +317,28 @@ scope". The split is the principle: **agents may SEE the network, they may not S
 observability (query logs, stats, metrics) carries no blast radius and stays freely
 available.
 
+### The same split generalizes: a permission an agent LACKS is often a control, not a gap (2026-08-04)
+
+**Before filing "the agent token can't do X" as a defect, ask whether X is something an agent
+should be able to do at all.** Case: the gateway's Gitea token returns `403` on
+`workflow_dispatch`. That looks like a tooling gap and I nearly queued a token-widening fix.
+The cc-be worker correctly refused it — **`release-deploy.yml` is a `workflow_dispatch` whose
+input is literally "Type DEPLOY to confirm a PRODUCTION deploy", so granting dispatch means any
+agent holding gateway access can ship to production, and the confirmation input is no defence:
+an agent supplies inputs as easily as a human types them.** The gateway is promptable from chat,
+from scheduled runs, and from any injected tool output — exactly the reachability that makes the
+capability wrong, not the scope.
+
+Read access is unaffected and that is the point: listing runs, reading run and job logs, and
+diagnosing CI all work. **See, never steer** — the network rule's shape, applied to deploys.
+
+**The operational consequence is the tell that this is right:** the blocked action becomes a
+HUMAN step in the hand-over, not an agent step to be unblocked. If your instinct on hitting a
+permission wall is to widen the permission, check first whether the wall is load-bearing —
+and prefer *removing the operation* over *re-homing it onto a more privileged identity* (the
+same pass found that a green registry probe would let two secrets be deleted outright rather
+than moved onto the new bot).
+
 ### Carve-out — DNS settings over SSH (Nik, restated 2026-08-02; supersedes the 2026-08-01 `ciminos.org`-only version)
 
 **Nik's rule, stated directly: the ONLY ban is DNS changes via MCP — and those tools are
