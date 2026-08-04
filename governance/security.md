@@ -272,6 +272,70 @@ credential:
 6. **Rotation scripts are infrastructure**: they live in the owning repo, get fixed (not
    worked around) when topology drifts, and their headers document symptom → root cause →
    knobs so the next failure is diagnosable from the error text alone.
+7. **A service account's OWN password is a credential — it goes in the store, not in a human's
+   password manager.** See below; this is the rule the other six assumed.
+
+### The account password is a provisioning credential (2026-08-04, Nik-directed)
+
+Rule 2 says "dedicated service account, not a human's identity". It never said where that
+account's **own login password** lives — and the omission has a cost, because a bot account has
+**two** credentials, not one:
+
+| Credential | What it does | Canon before today |
+|---|---|---|
+| the account **password** | authenticates the identity; mints and re-mints its tokens | *unstated* |
+| its **tokens / PATs** | what services actually consume | covered by rules 1–6 |
+
+**The password is not one-time setup material.** Some platforms make it the *only* way to mint
+that identity's tokens: Gitea's `POST /users/{name}/tokens` accepts **Basic auth only — a token
+cannot mint a token**, and admin sudo does not bypass it. Every future re-mint needs the password
+again. That shape recurs wherever token creation is deliberately excluded from token scope — a
+sensible design, and one that makes the password permanently load-bearing.
+
+**Therefore:** at account creation the password goes into the store at a purpose-named path, in
+the same block that sets it, and the Resource Registry row **names that path** — the existing
+credential-at-rest rule, applied to an account rather than a token. A service-account password
+living only in the human's personal password manager is a **defect**, not a safe default: it is
+the same failure as an on-box plaintext credential file — it works, it is not shared, and it
+silently converts an agent-runnable operation into a human round-trip.
+
+**Observed failure (cc-be, 2026-08-04)** — the `perpetuator-release-bot` Gitea password sat in
+Apple Passwords only. All three consequences trace to the rule's absence, not to bad luck: the
+mint flow was captured in a *thread journal* rather than a doc, so it had to be re-derived months
+later; the Resource Registry row drifted to **"the bot account was never created"** while the
+account existed and was the sole entry on the live `v*` allowlist; and a rotation consolidated a
+*human* PAT into `RELEASE_BOT_TOKEN` because the bot's own credential was not reachable — which
+broke the release path (cc-be#268).
+
+**Consumption — in-process, and mind the argv trap.** With the password in the store the agent
+runs these operations directly under the human's authenticated `bao` session; the value flows
+store → process and never enters agent context. The obvious form is wrong:
+
+```bash
+# WRONG — password in argv, visible in `ps` to every user on the box
+curl -u "svc-account:$PW" ...
+```
+
+`curl -u user:pass` violates *never on argv* even when the value came from the store. Use a config
+file curl reads, created and destroyed in the same block:
+
+```bash
+CFG="$(mktemp)"; chmod 600 "$CFG"; trap 'rm -f "$CFG"' EXIT
+printf 'user = "%s:%s"\n' "$SVC_USER" \
+  "$(bao kv get -field=password secret/platform/<svc>)" > "$CFG"
+curl -sS -K "$CFG" -X POST "$API/users/$SVC_USER/tokens" \
+  -H 'Content-Type: application/json' -d '{"name":"…","scopes":["…"]}' \
+  | python3 -c 'import json,subprocess,sys; subprocess.run(["bao","kv","put","secret/platform/<svc>-token","value=-"], input=json.load(sys.stdin)["sha1"].encode())'
+```
+
+The minted token goes **store-to-store** — the response is piped straight into `bao kv put`, never
+printed, never pasted. A ceremony that prints a token for a human to copy is the weaker fallback,
+acceptable only when the destination is a web UI with no API.
+
+**Generalization:** any credential whose absence forces a human round-trip for a *recurring*
+operation belongs in the store. The test is not "is this sensitive?" — it is **"will an agent need
+this again?"** If yes, a personal password manager is the wrong home however well protected,
+because it is unreachable to every automation that legitimately needs it.
 
 ---
 
