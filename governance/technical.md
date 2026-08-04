@@ -373,3 +373,29 @@ was Headscale split-DNS + DHCP, and the hand-made `/etc/resolver` file became re
 Canonical: `operating-canon/governance/technical.md` → `~/.claude/governance/technical.md`. Extends the
 [Constitution](README.md). Security-adjacent rules (secrets, supply-chain, access) live in
 [security.md](security.md).
+
+
+## Host access standard — tailnet-only, `ops`-only, password-sudo (2026-08-04, Nik-stated)
+
+Every server we run gets the SAME access shape. `cc-stage` and `cc-prod` are the
+reference implementation; anything that differs is drift to repair, not a local
+convention.
+
+| Control | Standard | Why |
+|---|---|---|
+| Reachability | **Tailnet only.** No SSH on a public interface; the public DNS name must not answer on any SSH port | The box is unreachable to the internet, so credential-stuffing and 0-days in sshd have no surface. Verified by `ssh <public-name>` refusing |
+| SSH user | **`ops` only.** No `root` login, no per-human accounts | One identity to audit, one to revoke. Root-over-SSH removes the sudo boundary entirely |
+| Key | **Secretive (Touch-ID-gated) key**, no on-disk private keys | The key cannot be copied off the Mac or used without the human present |
+| sudo | **Password required.** NOPASSWD only for explicitly enumerated automation commands, never `ALL` | The sudo password is the second factor: SSH-key compromise (or a confused agent) is one step short of root. Ansible uses `--ask-become-pass` |
+| Config | Managed by playbook (`/etc/sudoers.d/`, `sshd_config`), never hand-edited | Otherwise the policy drifts silently, which is exactly how it drifted |
+
+**The evidence this is not theoretical (2026-08-04):** the Gitea forge box had
+`(ALL) NOPASSWD: ALL`. Within minutes of an agent gaining routine SSH access it
+ran a privileged command unattended and took `git.perpetuator.io` down for four
+minutes. On lestrange the identical action is *impossible* for an agent — it
+must hand the step to the human, because it cannot supply the password. **The
+sudo password is doing real authorization work; treat its absence as a finding.**
+
+SSH client config follows the same shape everywhere — one alias block per host
+carrying the public name, the `<name>.mesh.perpetuator.io` MagicDNS name, and a
+short alias, all pointing at the tailnet IP with `User ops`.
