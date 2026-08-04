@@ -200,14 +200,35 @@ it must NOT absorb.*
 allowlist, an OAuth subject, an account-scoped quota, or anything else keyed to *who* rather than
 *what is granted*, it does not consolidate.
 
-### Corollary — order release steps so a refused credential fails SAFE
+### Corollary — run the CHECK before the irreversible step; that is NOT the same as moving the step
 
-The same incident exposed an ordering asymmetry worth copying deliberately: cc-fe's deploy job
-declares `needs: [release]`, so the **tag is created before anything ships** — a refused tag push
-stops the release with nothing deployed. cc-be tags **after** deploy and health check, so the same
-refusal yields a *half-release*: production is live, untagged — and the tag is what keeps the
-release commit from being garbage-collected. **Put the step that can be refused by an external
-authority FIRST**, so its failure costs nothing but a retry.
+The same incident exposed an ordering asymmetry. cc-fe's deploy job declares `needs: [release]`,
+so the **tag is created before anything ships** — a refused tag push stops the release with nothing
+deployed. cc-be tags **after** deploy and health check, so the same refusal yields a *half-release*:
+production live, untagged, and the tag is what keeps the release commit from being GC'd.
+
+**My first formulation of this rule was "put the refusable step first", and the cc-be worker
+correctly refused it (2026-08-04, #269).** Straight reordering *inverts* the failure rather than
+removing it, and the inverted version is quieter: cc-be's step is deliberately named *"Tag the
+deployed build"* — tag-first means a deploy or health failure leaves a `vX.Y.Z` tag for a build
+that never went live, **and because `v*` is protected that phantom tag is undeletable by a human**.
+Worse where the version namespace is load-bearing: cc-be reads CHANGELOG sections by tag and bases
+patch releases on `--from v<X.Y.Z>`, so a phantom tag pollutes permanently and every failed attempt
+burns a version number. The trade becomes *"shipped, untagged"* → *"tagged, never shipped,
+undeletable"* — both wrong, and the second fails silently.
+
+**The correct rule: the check that can fail must run before the irreversible step — which is not
+the same as moving the irreversible step earlier.** cc-be's fix hoists the *identity resolution*
+(the tag step already computes `tagging as: $WHO`) into a pre-flight at the top of the job, plus an
+allowlist comparison where readable: ~10 lines, no restructure, preserves "only tag what deployed",
+and makes the credential-shaped failure unreachable once prod is live. Residual risk stated rather
+than hidden: a *transient* push failure after a good deploy still leaves prod untagged — recoverable
+by re-push, and not the mode that was hit.
+
+**And do not force symmetry between repos for its own sake.** cc-fe's invariant ("nothing ships
+untagged, ever") is simpler and right *if someone owns protected-tag cleanup*; cc-be's is right
+where the version namespace is load-bearing. Two repos legitimately diverging on an ordering is a
+considered outcome, not drift.
 
 ## Found a hardcoded secret — rotation order matters
 1. Verify it's **live** (dead = no rotation). 2. Find every runtime consumer. 3. **Mint the
