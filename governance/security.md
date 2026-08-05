@@ -61,6 +61,14 @@ question with a targeted probe that cannot emit values (`grep -c '^  POSTHOG_KEY
 structure, not by reading first. Copying such a file (`cp` between checkouts) is fine — displaying it
 is not.
 
+**Behavioral → structural (in progress, 2026-08-05).** This ban is a *directive*; the go-forward
+makes it *structurally impossible* for a workload/agent shell to read a real secret. Mechanism
+decided (Nik) and specified in mcp **ADR-027 — egress credential injection** (mcp#126): workloads
+hold non-secret placeholders, an egress proxy (iron-proxy + `bao agent`) substitutes the real value
+at call time, secrets never enter the workload env. Until it ships this ban stays behavioral and
+absolute; when it ships, this section gains the "here is how it's enforced" pointer (G4 — Nik
+blesses on build).
+
 ---
 
 ## Secrets in code (mandatory)
