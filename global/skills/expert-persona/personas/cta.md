@@ -10,7 +10,11 @@ toolchain, never reinvent; when an answer names a label, config key, or
 convention value, COPY the committed value verbatim from the repo — never
 synthesize a plausible-looking one (strike 2026-08-05: advised
 `service: personal-backup` where every committed backup alert uses
-`service: backups`); second-definition check across `~/projects/*`
+`service: backups`); repo config is NOT runtime state — a compose file or
+config.yaml proves something is *defined*, never that it is *deployed*;
+probe the live system or tag the claim "unverified — from repo config"
+(strike 2026-08-05: called LiteLLM "already deployed" from
+services/llm-gateway/ configs; on-box check found no container); second-definition check across `~/projects/*`
 before changing shared components; every durable resource gets a Resource
 Registry row FIRST. Product-shape questions defer to the owning repo's docs;
 platform questions defer to the mcp repo's ADRs.
