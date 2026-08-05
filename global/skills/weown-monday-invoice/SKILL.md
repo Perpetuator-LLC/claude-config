@@ -3,10 +3,10 @@ name: weown-monday-invoice
 description: Every Monday: WeOwn Open-of-Week — last week's invoice + commitments review (Jason/Tyler asks, Nik's commitments, delegated-and-outstanding, untracked) + proposed SOWs per contributor + DRAFT SOW-request messages + global-progress update.
 ---
 
-You are running the **WeOwn Monday Open-of-Week** session. It does THREE things: (1) closes last week with the fractional-CTO invoice, (2) reviews last week's commitments and surfaces untracked items, (3) opens next week with proposed SOWs and DRAFT SOW-request messages. Tyler / Jason mandated this cadence — D406 (collect + approve + document weekly SOWs for the audit trail), D407 (document the process this week for #WeOwnSeason004), A216 + A219 (weekly SOW + Anything invoice from each contributor, Monday cadence). Owner: Nik (CTO). The vault is the Obsidian knowledge base at `/Users/nik/projects/notes/Perpetuator` — **read its `CLAUDE.md` first** for the Mandatory Processing Workflow, the State Doc taxonomy, the recency rule, the Tuleap sync rules, and the reply/draft conventions. Work only on the WeOwn engagement.
+You are running the **WeOwn Monday Open-of-Week** session. It does THREE things: (1) closes last week with the fractional-CTO invoice, (2) reviews last week's commitments and surfaces untracked items, (3) opens next week with proposed SOWs and DRAFT SOW-request messages. Tyler / Jason mandated this cadence — D406 (collect + approve + document weekly SOWs for the audit trail), D407 (document the process this week for #WeOwnSeason004), A216 + A219 (weekly SOW + Anything invoice from each contributor, Monday cadence). Owner: Nik (CTO). The vault is the **WeOwn** Obsidian vault at `/Users/nik/projects/notes-weown` (the graduated WeOwn engagement vault — the whole vault IS WeOwn, so paths below are vault-root-relative — flattened, with no engagement subfolder prefix, unlike the old frozen notes-perpetuator tree) — **read its `CLAUDE.md` first** for the Mandatory Processing Workflow, the State Doc taxonomy, the recency rule, the Tuleap sync rules, and the reply/draft conventions. Work only on the WeOwn engagement.
 
 ### Roster (contributors under the CTO, weekly SOW required)
-**Mohammed, Shahid, Peter, Roman, Dilonne** (Dilonne W23 onwards — onboarding focus). Dhruv is terminated; his state doc lives at `Engagements/WeOwn/State/Terminated/Dhruv.md` and he is **excluded** from the roster. If a roster member doesn't have a state doc yet (likely Dilonne the first time), create one using `Engagements/WeOwn/State/Peter.md` as the structural template, populated from journal evidence.
+**Mohammed, Shahid, Peter, Roman, Dilonne** (Dilonne W23 onwards — onboarding focus). Dhruv is terminated; his state doc lives at `State/Terminated/Dhruv.md` and he is **excluded** from the roster. If a roster member doesn't have a state doc yet (likely Dilonne the first time), create one using `State/Peter.md` as the structural template, populated from journal evidence.
 
 ### Date math (run this first)
 - "Last week" = the most recently completed Mon–Sun ISO week ending the Sunday before today. If today is Mon 2026-06-01 → last week = W22 (2026-05-25 → 2026-05-31).
@@ -22,7 +22,7 @@ You are running the **WeOwn Monday Open-of-Week** session. It does THREE things:
 ---
 
 ## STEP 1 — Data-capture verification (last week)
-- **Signal journals** live at `Engagements/WeOwn/Journal/<ISOweek>/` (e.g. `2026W22`). Confirm an entry exists for each day Mon–Sun. Signal is normally ingested nightly (21:30 via `nightly-signal-digest`). If a day is missing, note it; do not block the run.
+- **Signal journals** live at `Journal/<ISOweek>/` (e.g. `2026W22`). Confirm an entry exists for each day Mon–Sun. Signal is normally ingested nightly (21:30 via `nightly-signal-digest`). If a day is missing, note it; do not block the run.
 - **Zoom:** call the Zoom MCP `search_meetings` for last week's UTC window. Only count WeOwn meetings (WeOwn attendees/topics, or already journaled under WeOwn). **Exclude** generic recruiting/1:1 meetings with non-WeOwn external people (e.g. candidate interviews) — list them separately for Nik to route, do NOT bill them.
 - **Phone calls:** use what's journaled as `Call - <name> - <date>.md`. Flag that off-Signal/off-Zoom calls may need manual addition.
 
@@ -39,15 +39,15 @@ File: `Financial/WeOwn-time-estimate-<start>_to_<end>.csv`. If a CSV for this we
 ## STEP 4 — Compute the invoice
 Total minutes ÷ 60 × $200/hr = actual-estimate total. Report per-day minutes and the weekly total. Apply Nik's **10 h/wk self-cap**: bill $2,000 net, comp the overage, and mark ⚠️ CONFIRM (Nik flips to FINAL). If Nik confirms in-session, mark the invoice FINAL.
 
-## STEP 5 — Update `Engagements/WeOwn/WeOwn Billing.numbers` (CREATE + POPULATE the week's sheet — do NOT just leave a note)
+## STEP 5 — Update `WeOwn Billing.numbers` (CREATE + POPULATE the week's sheet — do NOT just leave a note)
 One sheet per week named like `S1-W<n>-<MonStart>-<SunEnd>-2026`. **BACK UP the .numbers file first** (`cp` it aside, dated). Use the `numbers-parser` Python lib (`pip install numbers-parser --break-system-packages`).
 - **These sheets are all static values (no live formulas), so author the week's sheet in full.** If the week's sheet doesn't exist, **create it** — `Document.add_sheet("S1-W<n>-...", "Table 1", num_rows=~40, num_cols=9)` — and populate it to match the most recent week's layout (read that sheet first to copy the exact structure): row0 `Price | 200`; a **curated block** (header `Date | Time Start | Time End | Time Total | Cost | Task | …`) = the meetings/calls + authoring/project sessions with hours + `$` cost, then a `Total (curated)` row (hours, $); a blank; a **Signal-detail block** (header `Date | Start (MT) | End (MT) | Est. Minutes | Category | Who / Channel | Notes`) = the messaging rows, then a `Total (Signal)` row (minutes, `X.XX hrs`, `$X,XXX.00`); a blank; a **GRAND TOTAL (curated + Signal)** row = total minutes, `X.XX hrs`, `$X,XXX.00` + a note. Numbers/hours/$ must reconcile to the CSV + the invoice.
 - `numbers-parser` cannot author formulas, so all totals are static values — expected. **Never touch the other sheets' cells.** After `Document.save(...)`, **reopen and verify**: sheet count went up by one, the new GRAND TOTAL reads correctly, and a prior sheet (e.g. last week's) still reads intact.
 - `add_sheet` appends the new sheet at the END; note in the report that Nik may want to drag it above the newest week (numbers-parser can't reorder). If the save would exceed the shell time cap, note it and leave the backup for Nik.
 
 ## STEP 6 — Invoice: (a) append to the ledger, (b) generate the standalone CTO invoice file
-(a) **Ledger** — append the week's section to `Engagements/WeOwn/WeOwn Invoices.md`, inserted ABOVE the most recent existing week (newest-first). Section header: `## Week of M/D (Wxx) — X.XX hrs (gross) · $2,000 net at 10 h/wk self-cap · <FINAL ✅ | ⚠️ CONFIRM>`. Match the existing format: summary paragraph (business-owner priority order), Sprint theme, Work Performed grouped by area with est. hours, Key Deliverables, bold Hours/Rate/Total line. Pull substance from the week's journal AI Summaries / CTO Analysis sections.
-(b) **Standalone CTO invoice file** — also generate `Engagements/WeOwn/Planning/<NextWeek>/CTO Invoice - <LastWeek> - <NextWeekStartISO>.md` (matching the prior week's file, e.g. `Planning/2026W26/CTO Invoice - W25 - 2026-06-22.md`). Frontmatter: `type: invoice`, `week`, `week_window`, `ccc_id: CTO_2026-W<n>_30NN` (**continue the sequence**: W23=_3008, W24=_3009, W25=_3010, W26=_3011 → increment by 1), `gross_hours`, `gross_amount`, `self_cap_hours: 10`, `amount_due: 2000`, `rate: 200`, `status`. Body: the invoice header (From **Perpetuator LLC** / **Bill To** Web3 Freedom Club DAO LLC, 5830 E 2nd Dr., Casper WY 82609 / Invoice # W<n>-2026 / phone 720-936-5908), an **Invoice Detail** table (per-day line items: Date · Type · Hours · Description · Cost), a **Self-Cap Adjustment** table (Gross → −comp at the 10 h cap → NET $2,000), a **Summary by Area** table, a **Week Summary** table, and Terms (Due upon receipt · Mercury ACH · CCC-ID). This is the sendable invoice; the ledger section is the running record.
+(a) **Ledger** — append the week's section to `WeOwn Invoices.md`, inserted ABOVE the most recent existing week (newest-first). Section header: `## Week of M/D (Wxx) — X.XX hrs (gross) · $2,000 net at 10 h/wk self-cap · <FINAL ✅ | ⚠️ CONFIRM>`. Match the existing format: summary paragraph (business-owner priority order), Sprint theme, Work Performed grouped by area with est. hours, Key Deliverables, bold Hours/Rate/Total line. Pull substance from the week's journal AI Summaries / CTO Analysis sections.
+(b) **Standalone CTO invoice file** — also generate `Planning/<NextWeek>/CTO Invoice - <LastWeek> - <NextWeekStartISO>.md` (matching the prior week's file, e.g. `Planning/2026W26/CTO Invoice - W25 - 2026-06-22.md`). Frontmatter: `type: invoice`, `week`, `week_window`, `ccc_id: CTO_2026-W<n>_30NN` (**continue the sequence**: W23=_3008, W24=_3009, W25=_3010, W26=_3011 → increment by 1), `gross_hours`, `gross_amount`, `self_cap_hours: 10`, `amount_due: 2000`, `rate: 200`, `status`. Body: the invoice header (From **Perpetuator LLC** / **Bill To** Web3 Freedom Club DAO LLC, 5830 E 2nd Dr., Casper WY 82609 / Invoice # W<n>-2026 / phone 720-936-5908), an **Invoice Detail** table (per-day line items: Date · Type · Hours · Description · Cost), a **Self-Cap Adjustment** table (Gross → −comp at the 10 h cap → NET $2,000), a **Summary by Area** table, a **Week Summary** table, and Terms (Due upon receipt · Mercury ACH · CCC-ID). This is the sendable invoice; the ledger section is the running record.
 
 ## STEP 7 — Produce the Stripe summary
 A single paragraph, ≤500 characters, no markdown, starting with `Week of M/D`, business-owner priority order (major features then major fixes), imperative tone. Output it in the final chat response ready to paste into Stripe.
@@ -55,7 +55,7 @@ A single paragraph, ≤500 characters, no markdown, starting with `Week of M/D`,
 ---
 
 ## STEP 8 — Commitments surfaced last week (NEW — drives the workflow Nik is missing)
-Write a detailed file at `Engagements/WeOwn/Planning/<NextWeek>/Open Commitments - <NextWeekStartISO>.md`. Sections:
+Write a detailed file at `Planning/<NextWeek>/Open Commitments - <NextWeekStartISO>.md`. Sections:
 
 **(a) Jason's Asks (last week)**
 Every request from Jason in last-week's journals (Signal/Zoom). For each: short verbatim quote (≤2 sentences), journal link `[[…]]`, **suggested route** (whose backlog this lands in, per D20). If an ask conflicts with a Tyler ask, flag it.
@@ -75,30 +75,30 @@ Everything from (a)–(d) that has **no Tuleap artifact AND is not already in a 
 **(f) Items Jason Assigned Directly to Contributors (D20 bypass watch)**
 Any task in last week's journals where Jason assigned work directly to a contributor without routing through Nik. List these for Nik to re-route or accept retroactively. This is the bookkeeping-and-planning flag Nik specifically asked for.
 
-## STEP 9 — Update `Engagements/WeOwn/State/WeOwn.md` (Global Progress + Next Steps)
+## STEP 9 — Update `State/WeOwn.md` (Global Progress + Next Steps)
 - Update `## Top Priorities — as of <today>` (re-rank if Jason/Tyler asks from last week have shifted things). Preserve existing D-number references.
 - Append or update a `## Global Progress & Next Steps — Week of <NextWeekStart>` section: one paragraph "what shipped last week", one paragraph "what's blocked", one paragraph "what's planned for next week" (tied to the per-contributor proposed SOWs below).
 - Update frontmatter `last_processed_journal` + `last_processed_at` per CLAUDE.md state-doc convention.
 
 ## STEP 10 — Update the SOW Log ledger
-File: `Engagements/WeOwn/State/SOW Log.md` (exists; preserve format).
+File: `State/SOW Log.md` (exists; preserve format).
 - Add a row for **last week** with each contributor's status: ✅ received / 🟡 partial / ❌ missing / — not-yet-contracted / n/a excluded. If you have no signal that a contributor sent in a SOW (no journal entry, no email, no Signal message body containing their SOW), the cell is **❌ missing**.
 - Add a row for **next week** with all `pending` (the proposed-SOW drafts you write in Step 11 go out today; their replies are not yet due).
 - If any prior-week cell is ❌, list those under **Outstanding SOWs Owed** with a draft follow-up Signal message per person (Status: DRAFT — awaiting CTO send).
 
 ## STEP 10.5 — Delivery verification (per contributor, BEFORE drafting any SOW)
 **Do NOT carry forward last week's *proposed* SOW items as if still open — verify what's already been delivered first.** For each roster member, before writing their SOW:
-1. **State doc** — read the newest status updates in `Engagements/WeOwn/State/<Name>.md` for ✅-delivered / "claimed complete" items.
-2. **Audit / reconciliation docs** — read any `<Name> - SOW vs Delivered vs Billed`, invoice-reconciliation, or performance-assessment doc (e.g. `Engagements/WeOwn/Shahid - SOW vs Delivered vs Billed (W22-W26) - INTERNAL`). These are the canonical "what was actually done vs said vs billed" record.
+1. **State doc** — read the newest status updates in `State/<Name>.md` for ✅-delivered / "claimed complete" items.
+2. **Audit / reconciliation docs** — read any `<Name> - SOW vs Delivered vs Billed`, invoice-reconciliation, or performance-assessment doc (e.g. `Shahid - SOW vs Delivered vs Billed (W22-W26) - INTERNAL`). These are the canonical "what was actually done vs said vs billed" record.
 3. **Invoice ingestion** — if the contributor has sent an invoice (vault journal, email to `invoices+sow@weown.net`, or a Signal message body), ingest it and **line-match against the last paid invoice**: anything already covered by a paid invoice is **not payable again** (the R48 over-bill pattern). Note net-new vs already-paid.
 
 Then scope the SOW to **genuinely-incomplete work only**. An already-done-but-unverified item becomes a **"verify / close-out" line** (deliver a reachable proof — live URL, dashboard, commit/PR ref), **never a re-build**. Carrying completed work back into a SOW inflates scope and, with billing, risks paying twice. (Root cause, 2026-06-29: Shahid's W27 SOW re-listed paid-SigNoz cloud + SearXNG-via-MCP, both already delivered in W25 — the answer was in the audit doc + his State doc, just not read before drafting.)
 
 ## STEP 11 — Draft Proposed SOWs (one per roster member)
 For each contributor in the roster:
-1. Read their State doc (`Engagements/WeOwn/State/<Name>.md`) — **including the Step 10.5 delivery-verification pass** so you don't re-list completed work. Create from `Peter.md` template if absent.
+1. Read their State doc (`State/<Name>.md`) — **including the Step 10.5 delivery-verification pass** so you don't re-list completed work. Create from `Peter.md` template if absent.
 2. Read the last 14 days of journal entries mentioning them (search frontmatter `people:` or filenames).
-3. Cross-reference WeOwn.md Top Priorities (just updated) + the Jason/Tyler asks from Step 8 + the Strategy-to-Execution doc at `Engagements/WeOwn/Projects/Strategy-to-Execution and SOW Workflow.md` (incl. §4a — the delivery-verification gate).
+3. Cross-reference WeOwn.md Top Priorities (just updated) + the Jason/Tyler asks from Step 8 + the Strategy-to-Execution doc at `Projects/Strategy-to-Execution and SOW Workflow.md` (incl. §4a — the delivery-verification gate).
 4. **Append** a section to their State doc titled `## Proposed SOW — Week of <NextWeekStart> (W<n>)` containing:
    - One-line header: dates, sprint theme (umbrella from WeOwn.md), proposer = `CTO (Nik)`, status = `DRAFT — awaiting contributor confirmation`.
    - **3–6 prioritized tasks** for the week. Each: title, *why it matters this week*, expected output / definition of done, Tuleap link if any, owner = the contributor.
@@ -111,13 +111,13 @@ For each contributor in the roster:
 - **Mohammed** — **finish burnedout.xyz first**, then continue what Jason was asking on Connex/AgencyPRO. If the journals show a Mohammed Wk1/Wk2 split (Jason-side Wk1 → build Wk2 — see Drafts in 2026W22), encode it explicitly in his SOW.
 - **Shahid** — ⚠️ **continuation-sensitive, flat-rate, bounded (D418/R48)**, and **delivery-verify first (Step 10.5)**: as of W25 he *delivered* `dev.weown.tools`, the devbox, the OTel→SigNoz agent, and SearXNG-via-MCP — do **not** re-list those; make them a verify/close-out line. Genuinely-open observability = **status pages + domain-expiry (A200/#1311)**. Route key items by experience (e.g. OpenRouter rotation A411 → Dilonne leads, Shahid executes). No HR editorializing in his message.
 - **Roman** — review WeOwn.md for current Roman tasks; default to closing auto-review noise (D398, ~20-page autoreview → signal-only), closing the 4–5 open PRs (A197), and running new `*-docker` templates through the Trimeta security pass (A196).
-- **Dilonne** — **Supabase + RLS in DOKS for the Pop DB substrate (D408)**, folded into the build plan laid out with Tyler 5/29. Heavier onboarding section: contracting status, repo access, dev-env (Zed mandatory), the proposal at `Engagements/WeOwn/Projects/ZeroTo100 - Unified Persistence Proposal - 2026-05-29.md` as the spec. The Pop DB ask (Jason 5/31 04:09) IS the substrate of the build sprint — encode that framing so he understands he's the headliner.
+- **Dilonne** — **Supabase + RLS in DOKS for the Pop DB substrate (D408)**, folded into the build plan laid out with Tyler 5/29. Heavier onboarding section: contracting status, repo access, dev-env (Zed mandatory), the proposal at `Projects/ZeroTo100 - Unified Persistence Proposal - 2026-05-29.md` as the spec. The Pop DB ask (Jason 5/31 04:09) IS the substrate of the build sprint — encode that framing so he understands he's the headliner.
 
 ## STEP 11.5 — Draft Nik's own weekly SOW (the CTO's SOW for NEXT week)
-Nik files his own weekly SOW too — the CTO is on the same cadence as the contributors. Write it at `Engagements/WeOwn/Planning/<NextWeek>/Nik SOW - <NextWeek> - <NextWeekStartISO>.md`. Source it from the **Open Commitments §(c) Nik's-commitments list** + the **Top-3** + WeOwn.md's "Nik's week" line. Frontmatter: `type: sow`, `subtype: cto-weekly-sow`, `person: Nik`, `week`, `rate: 200`, `billing_cap_hours_per_week: 10`, `status: READY TO SEND — CTO weekly SOW (W<n>)`. Body: a one-line header (dates, sprint umbrella, owner = CTO (Nik), planned-hours vs the 10 h billing cap with overage comped), then **capacity-based prioritized tasks with hour estimates** (contributor-gating unblocks first, then deadline-bound items, then the rest) — each with a DoD + Tuleap/link — a capacity note naming the slip-to-next-week candidates if it overflows, and a close tying it to the W<n> Stripe invoice. This is a **sendable** artifact (to Tyler/Jason), not a DRAFT-to-send message.
+Nik files his own weekly SOW too — the CTO is on the same cadence as the contributors. Write it at `Planning/<NextWeek>/Nik SOW - <NextWeek> - <NextWeekStartISO>.md`. Source it from the **Open Commitments §(c) Nik's-commitments list** + the **Top-3** + WeOwn.md's "Nik's week" line. Frontmatter: `type: planning-doc`, `subtype: cto-weekly-sow`, `person: Nik`, `week`, `rate: 200`, `billing_cap_hours_per_week: 10`, `status: READY TO SEND — CTO weekly SOW (W<n>)` (notes-weown OKF vocab: `type: sow` is a frozen-only census value, so new SOW docs use `planning-doc` per the consolidation proposal — orchestrator ruling 2026-08-05, Nik may override at review). Body: a one-line header (dates, sprint umbrella, owner = CTO (Nik), planned-hours vs the 10 h billing cap with overage comped), then **capacity-based prioritized tasks with hour estimates** (contributor-gating unblocks first, then deadline-bound items, then the rest) — each with a DoD + Tuleap/link — a capacity note naming the slip-to-next-week candidates if it overflows, and a close tying it to the W<n> Stripe invoice. This is a **sendable** artifact (to Tyler/Jason), not a DRAFT-to-send message.
 
 ## STEP 12 — DRAFT SOW-request messages (one per roster member)
-For each contributor, create a file at `Engagements/WeOwn/Planning/<NextWeek>/SOW Request - <Name> - <NextWeekStartISO>.md`. Frontmatter:
+For each contributor, create a file at `Planning/<NextWeek>/SOW Request - <Name> - <NextWeekStartISO>.md`. Frontmatter:
 
 ```yaml
 ---
@@ -126,14 +126,14 @@ recipient: <Name>
 channel: signal-private
 status: DRAFT — awaiting CTO send
 date: <today>
-related_state_doc: Engagements/WeOwn/State/<Name>.md
+related_state_doc: State/<Name>.md
 ---
 ```
 
 Body: short ask. Quote the proposed-SOW section inline (so they have full context in one message). Open with `Hey <Name>, here's the proposed SOW for Week of <date>...`. Close with the Tuesday deadline + Zed reminder + Anything-invoice line. **Do NOT auto-send under any condition.** Per CLAUDE.md, all reply/outbound messages are DRAFTs awaiting CTO review.
 
 ## STEP 13 — Monday Open summary file
-Write the run's top-level summary at `Engagements/WeOwn/Planning/<NextWeek>/Monday Open - <NextWeekStartISO>.md`. Contents:
+Write the run's top-level summary at `Planning/<NextWeek>/Monday Open - <NextWeekStartISO>.md`. Contents:
 - **Invoice headline:** weekly total ($ and hours), per-day breakdown, the Stripe summary text, and a one-line confirmation the Billing.numbers sheet was created/populated (Step 5).
 - **Last week's deliverables** — one paragraph from `WeOwn Invoices.md`'s new section.
 - **Counts:** Jason asks, Tyler asks, Nik commitments (split done/in-progress/overdue/untracked), delegated-and-outstanding per person, untracked-commitments total, SOWs owed (from the ledger).

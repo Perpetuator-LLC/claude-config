@@ -21,8 +21,8 @@ GitHub Copilot's agent mode works well because of a **three-layer prompt archite
 ### 1. Install (machine-level)
 
 ```bash
-git clone <repo-url> ~/claude-config
-cd ~/claude-config
+git clone <repo-url> ~/operating-canon
+cd ~/operating-canon
 ./install.sh
 ```
 
@@ -32,7 +32,7 @@ This sets up `~/.claude/` with the global configuration. Hooks and agents are sy
 
 ```bash
 cd /path/to/your/project
-~/claude-config/init-project.sh
+~/operating-canon/init-project.sh
 ```
 
 This creates a project-level `CLAUDE.md` with auto-detected stack info. Edit it to add your architecture details and conventions.
@@ -67,6 +67,7 @@ Hooks are the mechanism for replicating Copilot's behavioral injection. They fir
 | `UserPromptSubmit` | `reminder-instructions.sh` | Every prompt | Injects autonomy directive ("keep going, take action") |
 | `SessionStart` | `session-start.sh` | New session | Generates workspace file tree + stack detection |
 | `PreToolUse[Bash]` | `bash-safety-gate.sh` | Before shell commands | Blocks `rm -rf`, force push, `DROP TABLE`, pipe-to-shell |
+| `PreToolUse[Bash]` | `script-audit.sh` | Before shell commands | Records executed **script content** (`bash x.sh`, `./x`) to `~/.claude/audit/scripts.log` — audit only, never blocks, never emits to context |
 | `PreToolUse[Write]` | `write-safety-gate.sh` | Before file writes | Blocks writes to `.env`, credentials, key files |
 | `PostToolUse[Write\|Edit]` | `post-edit-lint.sh` | After file edits | Auto syntax-check (Python, TS, JS, Ruby, Go, JSON, YAML, shell) |
 | `Stop` | `notify-complete.sh` | Task finishes | Desktop notification (macOS + Linux) |
@@ -180,7 +181,7 @@ Remove or comment out the hook entry in `global/settings.json`. Changes propagat
 One command:
 
 ```bash
-~/claude-config/update.sh
+~/operating-canon/update.sh
 ```
 
 This runs `git pull` and re-applies `install.sh` (idempotent, picks up any new hooks, agents, or MCP servers). Symlinked files (`CLAUDE.md`, `settings.json`, `agents/`, hooks) update automatically; `~/.claude/CLAUDE.local.md` is preserved.
@@ -195,7 +196,7 @@ If your `~/.claude/CLAUDE.md` was created by an earlier version (a regular file,
 ## Uninstalling
 
 ```bash
-cd ~/claude-config
+cd ~/operating-canon
 ./uninstall.sh
 ```
 
@@ -206,8 +207,8 @@ Removes symlinks and restores any backed-up files. Your `~/.claude/CLAUDE.md` is
 For agentic containers or CI environments, run the install non-interactively:
 
 ```bash
-git clone <repo-url> /opt/claude-config
-cd /opt/claude-config
+git clone <repo-url> /opt/operating-canon
+cd /opt/operating-canon
 ./install.sh
 ```
 
@@ -216,7 +217,7 @@ The hooks and configuration work in any environment where Claude Code runs. The 
 ## Structure
 
 ```
-claude-config/
+operating-canon/
 ├── install.sh                  # Machine-level install
 ├── update.sh                   # One-command sync: git pull + install
 ├── uninstall.sh                # Remove global config
@@ -231,6 +232,7 @@ claude-config/
 ├── hooks/
 │   ├── reminder-instructions.sh  # Autonomy injection
 │   ├── bash-safety-gate.sh       # Dangerous command blocker
+│   ├── script-audit.sh           # Executed-script content recorder (audit)
 │   ├── write-safety-gate.sh      # Credential file protector
 │   ├── post-edit-lint.sh         # Auto syntax check
 │   ├── session-start.sh          # Workspace context generator

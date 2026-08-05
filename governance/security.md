@@ -15,6 +15,11 @@ The non-negotiable security posture. Unlike most domains, **Security holds its l
 work** — a client's convenience preference never overrides these (precedence in the Core: my safety
 and security always apply). Flag, don't bypass.
 
+> **Where does this secret go?** → [`secrets-registry.md`](secrets-registry.md) — the canonical
+> secrets topology + path registry (stores, path conventions, per-service paths, the
+> route-before-create / register-on-create / retire-on-retire rule, and the 404-diagnosis recipe).
+> Consult it BEFORE seeding, moving, or hunting any secret path (added 2026-07-25).
+
 ---
 
 ## Supply chain — minimize what runs on the machine
@@ -55,6 +60,14 @@ question with a targeted probe that cannot emit values (`grep -c '^  POSTHOG_KEY
 `grep -o 'FIELD_NAME' file`); to ADD fields, use a blind in-place edit (`sed`/`perl -pi`) keyed on
 structure, not by reading first. Copying such a file (`cp` between checkouts) is fine — displaying it
 is not.
+
+**Behavioral → structural (in progress, 2026-08-05).** This ban is a *directive*; the go-forward
+makes it *structurally impossible* for a workload/agent shell to read a real secret. Mechanism
+decided (Nik) and specified in mcp **ADR-027 — egress credential injection** (mcp#126): workloads
+hold non-secret placeholders, an egress proxy (iron-proxy + `bao agent`) substitutes the real value
+at call time, secrets never enter the workload env. Until it ships this ban stays behavioral and
+absolute; when it ships, this section gains the "here is how it's enforced" pointer (G4 — Nik
+blesses on build).
 
 ---
 
@@ -140,7 +153,116 @@ Keep each in one of four states:
 deliberately, then drop it. The role in your shell prompt (Technical → host naming) reflects this.
 **Litmus:** if it's needed to bring the store or a host back from cold, it can't live *in* the store.
 
+### This binds what I PROVISION and DOCUMENT, not only what I handle (Nik, 2026-08-02)
+
+The four states above were read as rules about *my* handling of a credential in flight. They are
+equally rules about the **posture I leave behind**. Three amendments, each from a real miss:
+
+- **A service admin credential I provision goes in the store and is injected at runtime — a
+  plaintext file on the host is a DEFECT, not a design.** Docker images that accept
+  `*_PASSWORD_FILE` make the plaintext file the *documented* path; that is the vendor's
+  convenience, not our posture. Use the store + injector (the `openbao_exec` pattern) and, where a
+  file is genuinely unavoidable, it is short-lived, generated at start, and removed after read.
+- **`chmod 600` is not a control.** It survives nothing that matters — host compromise, a backup
+  or snapshot, an off-box sync, a careless `tar`. Mode bits are hygiene on top of a control, never
+  the control. (Same defect class as the fleet's "a wrong answer wearing the shape of a right one":
+  600 *looks* protective, and its presence in a note reads as due diligence.)
+- **A registry row naming a plaintext credential path NORMALIZES the violation** — that is how this
+  one survived three weeks. The Resource Registry records *what/where/why/status*; where a
+  credential lives is recorded as **the store path** (`secret/platform/<x>`), never as an on-box
+  file path. Encountering a row that names a plaintext path is a FINDING: fix it in the same turn
+  if it is your lane, ticket it to the owner if it is not — do not copy it forward.
+
+**Strike (2026-08-02, Technitium):** the DNS admin password sat plaintext at
+`/mnt/storage1/technitium/admin.pass` (mode 600) since 2026-07-11, consumed by the compose file and
+a daily cron, and the registry row documented it approvingly. Nik: *"keeping secrets like DNS in
+files is a huge security risk especially in the clear."* The credential controls the resolution
+layer beneath every other control — the exact blast radius the network-control rule exists to
+protect.
+
 ---
+
+## Consolidate credentials only within ONE authorization model (2026-08-04)
+
+**Credential consolidation is safe only where every consumer asks the SAME QUESTION of the
+token.** Two secrets can look identical — same format, same repo, same holder — and still be
+un-mergeable, because they are checked by different mechanisms:
+
+| Secret | What the checker asks |
+|---|---|
+| `REGISTRY_TOKEN` | *does this token's identity have permission on the repo?* |
+| `RELEASE_BOT_TOKEN` | *is this token's identity the NAMED user on the protected-tag allowlist?* |
+
+A consolidated token **passes every permission check and is still rejected by name.** Permission
+is a property of the grant; allowlisting is a property of the identity — and no amount of scope
+fixes the wrong identity.
+
+**Strike (2026-08-04, cc-be):** a well-intentioned rotation seeded one consolidated human PAT
+into both secrets. It satisfied the registry, and it silently **broke the next release**: `v*`
+is protected with an allowlist of exactly one user (`perpetuator-release-bot`), so the tag push
+would be refused for a token that has every permission it needs. The consolidation ticket had to
+carve `RELEASE_BOT_TOKEN` out explicitly — *a consolidation plan is incomplete until it names what
+it must NOT absorb.*
+
+**Before merging two credentials, write down the checker for each.** If one is a named-identity
+allowlist, an OAuth subject, an account-scoped quota, or anything else keyed to *who* rather than
+*what is granted*, it does not consolidate.
+
+### Passing the authorization test is PERMISSION to consolidate, not OBLIGATION (2026-08-04)
+
+The test above answers *"is merging legal?"* — it says nothing about *"is merging wise?"* **That is a
+second, independent question, and its axis is blast radius.**
+
+**Strike (2026-08-04, mine):** asked whether one `perpetuator-release-bot` token could serve both the
+registry push and the protected-tag push, I applied the authorization test, found both checkers
+satisfiable by that one identity, and recommended consolidating. The cc-be worker refused and was
+right: **the two credentials are not symmetric in exposure.** The registry credential has a
+*demonstrated* leak path into published artifacts — it was copied into published image layers,
+readable by anyone who could pull (#245/#260, since fixed and regression-gated). The release
+credential has no such realized failure. Share one value and a reopened leak stops yielding *"can
+push images"* and starts yielding *"can push images **and forge a protected release tag**"* — on the
+namespace whose entire purpose is that humans cannot create tags in it. **No part of the identity
+test detects that.**
+
+**The rule:** a credential with a **demonstrated** leak path stays minimal even when the identity
+test says merging is legal. Prefer **same identity, separate tokens with disjoint scopes** — it banks
+the whole benefit (one bot identity, no human in CI, allowlist satisfied) while keeping the
+leak-prone credential exactly as small as it already was. An extra token rotating through the same
+account and the same flow is not a real cost.
+
+**And check first whether the credential is needed at all.** Both of the above are moot if the
+platform's ephemeral job token can already do the job — *removing* an operation beats consolidating
+it, and beats splitting it. Probe before you design the merge.
+
+### Corollary — run the CHECK before the irreversible step; that is NOT the same as moving the step
+
+The same incident exposed an ordering asymmetry. cc-fe's deploy job declares `needs: [release]`,
+so the **tag is created before anything ships** — a refused tag push stops the release with nothing
+deployed. cc-be tags **after** deploy and health check, so the same refusal yields a *half-release*:
+production live, untagged, and the tag is what keeps the release commit from being GC'd.
+
+**My first formulation of this rule was "put the refusable step first", and the cc-be worker
+correctly refused it (2026-08-04, #269).** Straight reordering *inverts* the failure rather than
+removing it, and the inverted version is quieter: cc-be's step is deliberately named *"Tag the
+deployed build"* — tag-first means a deploy or health failure leaves a `vX.Y.Z` tag for a build
+that never went live, **and because `v*` is protected that phantom tag is undeletable by a human**.
+Worse where the version namespace is load-bearing: cc-be reads CHANGELOG sections by tag and bases
+patch releases on `--from v<X.Y.Z>`, so a phantom tag pollutes permanently and every failed attempt
+burns a version number. The trade becomes *"shipped, untagged"* → *"tagged, never shipped,
+undeletable"* — both wrong, and the second fails silently.
+
+**The correct rule: the check that can fail must run before the irreversible step — which is not
+the same as moving the irreversible step earlier.** cc-be's fix hoists the *identity resolution*
+(the tag step already computes `tagging as: $WHO`) into a pre-flight at the top of the job, plus an
+allowlist comparison where readable: ~10 lines, no restructure, preserves "only tag what deployed",
+and makes the credential-shaped failure unreachable once prod is live. Residual risk stated rather
+than hidden: a *transient* push failure after a good deploy still leaves prod untagged — recoverable
+by re-push, and not the mode that was hit.
+
+**And do not force symmetry between repos for its own sake.** cc-fe's invariant ("nothing ships
+untagged, ever") is simpler and right *if someone owns protected-tag cleanup*; cc-be's is right
+where the version namespace is load-bearing. Two repos legitimately diverging on an ordering is a
+considered outcome, not drift.
 
 ## Found a hardcoded secret — rotation order matters
 1. Verify it's **live** (dead = no rotation). 2. Find every runtime consumer. 3. **Mint the
@@ -184,6 +306,70 @@ credential:
 6. **Rotation scripts are infrastructure**: they live in the owning repo, get fixed (not
    worked around) when topology drifts, and their headers document symptom → root cause →
    knobs so the next failure is diagnosable from the error text alone.
+7. **A service account's OWN password is a credential — it goes in the store, not in a human's
+   password manager.** See below; this is the rule the other six assumed.
+
+### The account password is a provisioning credential (2026-08-04, Nik-directed)
+
+Rule 2 says "dedicated service account, not a human's identity". It never said where that
+account's **own login password** lives — and the omission has a cost, because a bot account has
+**two** credentials, not one:
+
+| Credential | What it does | Canon before today |
+|---|---|---|
+| the account **password** | authenticates the identity; mints and re-mints its tokens | *unstated* |
+| its **tokens / PATs** | what services actually consume | covered by rules 1–6 |
+
+**The password is not one-time setup material.** Some platforms make it the *only* way to mint
+that identity's tokens: Gitea's `POST /users/{name}/tokens` accepts **Basic auth only — a token
+cannot mint a token**, and admin sudo does not bypass it. Every future re-mint needs the password
+again. That shape recurs wherever token creation is deliberately excluded from token scope — a
+sensible design, and one that makes the password permanently load-bearing.
+
+**Therefore:** at account creation the password goes into the store at a purpose-named path, in
+the same block that sets it, and the Resource Registry row **names that path** — the existing
+credential-at-rest rule, applied to an account rather than a token. A service-account password
+living only in the human's personal password manager is a **defect**, not a safe default: it is
+the same failure as an on-box plaintext credential file — it works, it is not shared, and it
+silently converts an agent-runnable operation into a human round-trip.
+
+**Observed failure (cc-be, 2026-08-04)** — the `perpetuator-release-bot` Gitea password sat in
+Apple Passwords only. All three consequences trace to the rule's absence, not to bad luck: the
+mint flow was captured in a *thread journal* rather than a doc, so it had to be re-derived months
+later; the Resource Registry row drifted to **"the bot account was never created"** while the
+account existed and was the sole entry on the live `v*` allowlist; and a rotation consolidated a
+*human* PAT into `RELEASE_BOT_TOKEN` because the bot's own credential was not reachable — which
+broke the release path (cc-be#268).
+
+**Consumption — in-process, and mind the argv trap.** With the password in the store the agent
+runs these operations directly under the human's authenticated `bao` session; the value flows
+store → process and never enters agent context. The obvious form is wrong:
+
+```bash
+# WRONG — password in argv, visible in `ps` to every user on the box
+curl -u "svc-account:$PW" ...
+```
+
+`curl -u user:pass` violates *never on argv* even when the value came from the store. Use a config
+file curl reads, created and destroyed in the same block:
+
+```bash
+CFG="$(mktemp)"; chmod 600 "$CFG"; trap 'rm -f "$CFG"' EXIT
+printf 'user = "%s:%s"\n' "$SVC_USER" \
+  "$(bao kv get -field=password secret/platform/<svc>)" > "$CFG"
+curl -sS -K "$CFG" -X POST "$API/users/$SVC_USER/tokens" \
+  -H 'Content-Type: application/json' -d '{"name":"…","scopes":["…"]}' \
+  | python3 -c 'import json,subprocess,sys; subprocess.run(["bao","kv","put","secret/platform/<svc>-token","value=-"], input=json.load(sys.stdin)["sha1"].encode())'
+```
+
+The minted token goes **store-to-store** — the response is piped straight into `bao kv put`, never
+printed, never pasted. A ceremony that prints a token for a human to copy is the weaker fallback,
+acceptable only when the destination is a web UI with no API.
+
+**Generalization:** any credential whose absence forces a human round-trip for a *recurring*
+operation belongs in the store. The test is not "is this sensitive?" — it is **"will an agent need
+this again?"** If yes, a personal password manager is the wrong home however well protected,
+because it is unreachable to every automation that legitimately needs it.
 
 ---
 
@@ -246,6 +432,211 @@ compression runs under `bash -o pipefail` so a mid-dump failure can't hide behin
 exit 0. Backup MONITORING must not share fate with the backup maker (a dead celery-beat
 silences a celery dead-man): in-app alerting is a layer, the real check is external.
 
+## Network control is not an agent capability (2026-07-26 standard)
+
+**No promptable interface — MCP tool, voice, chat, scheduled agent — may MUTATE network
+control.** DNS records/blocklists/allowlists, firewall rules, routing, VPN/tailnet ACLs:
+read yes, write never. Enforced, not merely documented: the DNS write tools were deleted
+from the gateway and `Permission.DNS_WRITE` removed, with tests that fail if either
+returns (mcp `services/mcp/tests/test_dns_no_write_tools.py`).
+
+**Why this class is special.** DNS is the resolution layer *beneath* every other control.
+Anything that can rewrite it silently redirects traffic for every device on the network —
+credential capture, MITM, exfiltration — and the change reads as ordinary config, not as
+an attack. Two properties make an AI interface the wrong place for it:
+- **Promptable**: the model acts on content it merely READS (a web page, an email, a log
+  line). A capability that reconfigures the network must not sit behind an input channel
+  that untrusted text can reach.
+- **Voice is worse**: weak authentication, no review step, no diff, ambient trigger.
+
+**Calibration of the originating case (be accurate about it).** The tools actually removed
+(`dns_block_domain` / `dns_allow_domain`) reached only the resolver's block/allow LISTS — no
+zone or record editing — so the reachable harm was **denial and filter-bypass**, not
+redirection. The class rationale above (redirection/MITM) still governs the rule, because
+the class includes record control; do not read the incident as a live MITM hole. Two things
+made the list-only surface serious anyway: **blinding** (blocking the alert relay or chat
+homeserver silences alerting while everything looks normal) and **bypass** (an allowlist
+entry overrides subscribed blocklists). No template granted the scope, so standing exposure
+was to `*`-scoped sessions — narrow, but real.
+
+**The tell to remember:** the permission's own comment read *"gate carefully"*. Someone saw
+the risk and shipped it behind a scope. **"Gate carefully" is not a control** — that is
+precisely why this is a hard tier rather than a scope: it removes the judgment call from the
+moment of temptation. Capability without observability (no confirmation, no change alert, no
+reviewable diff) is where the line falls.
+
+**Authorization floor for network control: a human, on a dev machine, inside the tailnet,
+over SSH.** That tier is the gate, and it is deliberately higher than "an agent holding a
+scope". The split is the principle: **agents may SEE the network, they may not STEER it** —
+observability (query logs, stats, metrics) carries no blast radius and stays freely
+available.
+
+### The same split generalizes: a permission an agent LACKS is often a control, not a gap (2026-08-04)
+
+**Before filing "the agent token can't do X" as a defect, ask whether X is something an agent
+should be able to do at all.** Case: the gateway's Gitea token returns `403` on
+`workflow_dispatch`. That looks like a tooling gap and I nearly queued a token-widening fix.
+The cc-be worker correctly refused it — **`release-deploy.yml` is a `workflow_dispatch` whose
+input is literally "Type DEPLOY to confirm a PRODUCTION deploy", so granting dispatch means any
+agent holding gateway access can ship to production, and the confirmation input is no defence:
+an agent supplies inputs as easily as a human types them.** The gateway is promptable from chat,
+from scheduled runs, and from any injected tool output — exactly the reachability that makes the
+capability wrong, not the scope.
+
+Read access is unaffected and that is the point: listing runs, reading run and job logs, and
+diagnosing CI all work. **See, never steer** — the network rule's shape, applied to deploys.
+
+**The operational consequence is the tell that this is right:** the blocked action becomes a
+HUMAN step in the hand-over, not an agent step to be unblocked. If your instinct on hitting a
+permission wall is to widen the permission, check first whether the wall is load-bearing —
+and prefer *removing the operation* over *re-homing it onto a more privileged identity* (the
+same pass found that a green registry probe would let two secrets be deleted outright rather
+than moved onto the new bot).
+
+### Carve-out — DNS settings over SSH (Nik, restated 2026-08-02; supersedes the 2026-08-01 `ciminos.org`-only version)
+
+**Nik's rule, stated directly: the ONLY ban is DNS changes via MCP — and those tools are
+deleted. Over SSH, agents MAY change our DNS settings** (Technitium on `lestrange`: records,
+blocklists/allowlists, blocking toggles, settings). His rationale, verbatim in spirit: an SSH
+session means the agent is *on his machine with his SSH keys, and he is present to watch* —
+presence + key custody + a reviewable shell is the authorization, and it is exactly the
+"human, on a dev machine, inside the tailnet, over SSH" floor named above. The earlier
+carve-out (2026-08-01) limited this to internal `ciminos.org` A-records; **that scope limit is
+lifted for DNS settings generally**. Still banned, unchanged: **any** DNS mutation from a
+promptable surface (MCP tool, voice, chat-triggered API call, scheduled/cron agent), and the
+rest of the network-control class — firewall rules, routing, VPN/tailnet ACLs — stays
+human-only on every surface. The SSH-tier gate is the whole point: the capability rides an
+authenticated shell whose key custody and visibility belong to Nik, never a tool surface
+untrusted text can reach. Practical note (diagnosed 2026-08-01): the "lestrange refuses BatchMode" symptom is NOT the
+server — the SSH key is a **Secretive Secure-Enclave key requiring Touch ID per signature**
+(Doctrine L1, by design), so a headless BatchMode connect stalls at the sign step. The
+sanctioned agent path is the already-configured **ControlMaster mux** (`Host *`:
+`ControlMaster auto`, `ControlPersist 10m`): Nik's one biometric-approved interactive
+connect opens a persisted master, and agent commands ride it for the persist window with no
+further prompts. Presence unlocks the window; never bypass the enclave gate itself.
+
+**Generalization — rate a control surface by blast radius, not convenience.** The
+automation-authority principle (move the operation to where the authority lives) says how
+to automate safely; this is its ceiling: some capabilities should not be agent-reachable
+at any scope. Before exposing a mutating tool, ask *what does a confused or injected agent
+do with this at 3am?* If the answer is "silently reroute/deny/expose traffic for everyone",
+it belongs behind SSH, not behind a scope. **Reaching that bar is the prerequisite before
+building any deeper network-control-plus-AI integration** — earn the tier first.
+
+**Corollary — network policy belongs in IaC.** Allow/block lists that live only in an
+appliance are drift the repo cannot see; that invisibility is how a household ad-blocker
+came to block the business's own ad-platform API without anyone knowing (mcp#152).
+
+## DNS conflicts: fix at the narrowest scope that works (2026-07-26)
+
+When a shared DNS policy blocks something one machine legitimately needs, **do not widen
+the shared policy** — override at the narrowest scope, in this order:
+
+1. **Per-machine, per-domain resolver override.** macOS: `/etc/resolver/<domain>` containing
+   `nameserver 1.1.1.1` routes only that domain's lookups off the shared resolver, only on
+   that machine. Zero effect on everyone else, and the machine keeps filtering for
+   everything else. *Gotcha that will fool you:* `dig`/`nslookup` query resolvers directly
+   and IGNORE `/etc/resolver` — they still show the old answer. Verify with `curl` or a
+   browser, which use the system resolver. (Linux equivalent: systemd-resolved per-link
+   domain routing, or a dnsmasq `server=/domain/ip` line.)
+2. **Per-client-group policy on the resolver** (e.g. Technitium's Advanced Blocking app):
+   infrastructure and work devices exempt, family devices keep the blocklist.
+3. **Global allowlist entry — last resort**, and only with the cost stated out loud: it
+   reduces filtering for *every* device on the network.
+
+The reasoning generalizes past DNS: when a shared control blocks one legitimate use, the
+fix is scoped exemption, never a blanket loosening — a global change to satisfy one machine
+silently degrades the protection for everything else.
+
+### Pick the rung from the CONSUMER, not from the domain (2026-07-26)
+
+The ladder above is useless if you ask the wrong question. The instinct is to ask *"is this
+domain legitimate?"* — which is almost always yes, and always argues for rung 3. The right
+question is **"who actually needs this, and does everyone else need it too?"**
+
+Worked example, and the mistake it caught: after the household ad-blocker was found blocking
+X's ad domains, I drafted a **global** allowlist for `ads.x.com` / `analytics.x.com` /
+`ads-api.x.com`. Nik stopped it — *"we want ads blocked for the family network right?"* Both
+things were true at once: the domains are legitimate business infrastructure, **and** a
+global exemption hands the family network X's ad tracking. The blocklist doing its job is
+not a bug to be worked around.
+
+**The same domain can sit on different rungs for different consumers.** Decompose by
+consumer before choosing:
+
+| Consumer | Actually needs | Rung |
+|---|---|---|
+| One human running ad campaigns in a web UI | `ads.x.com`, `analytics.x.com` | **1** — per-machine resolver override on that Mac |
+| Servers doing conversion sync via API | `ads-api.x.com` | **2** — group policy *if* those hosts even resolve through this resolver (often they don't; verify before exempting) |
+| Family devices | nothing | **blocked, unchanged** |
+
+So a single "unblock X ads" request splits into one machine-local override, one
+verify-then-maybe group policy, and one deliberate no-change. **A global allowlist that
+stays empty is the success condition, not an unfinished job** — record rejected candidates
+and the reason in the file so the next person doesn't re-add them.
+
+**Two separations, don't conflate them.** They answer different questions and split along
+different lines:
+
+| Separation | Question it answers | Splits by |
+|---|---|---|
+| **Policy scope** (this section) | who gets the exemption | *who consumes it* — machine / group / everyone |
+| **Config location** ([technical.md](technical.md) → public engine, private config) | who may read the config | *what is publishable* — public repo / private overlay / secret store |
+
+They cut across each other: a machine-scoped exemption may still be private config, and a
+network-wide policy may be perfectly publishable. Deciding one does not decide the other.
+
+## Security review: identify → ticket → hand off (2026-07-27 standard)
+
+**A security reviewer's deliverable is a triaged, verified finding that has REACHED THE WORK
+QUEUE — not a patch.** Reviewers (the nightly/weekly audit agents, `/security-review`, any
+audit pass) are not responsible for remediating what they find. Their job ends at:
+
+1. **Identify** — find it, and adversarially verify it firsthand (attacker-reachable input +
+   unguarded sink, real file:line). Discard what you cannot confirm; a plausible-but-unverified
+   finding costs more than it's worth.
+2. **Triage** — separate real from noise, and rate by **actual exploitability, not theoretical
+   severity**. A dev-only CVE that never enters the bundle is not a P1 because the scanner said
+   "moderate".
+3. **Ticket** — file it in the owning repo with a priority label, self-contained enough to act on
+   without the audit session.
+4. **Hand off** — tell the repo's worker thread the tickets exist and in what order.
+
+**Fixing is optional and never the obligation.** A reviewer MAY land a small, surgical,
+high-confidence fix — that's a bonus. It must never become the reason a finding goes unticketed,
+and a fix that needs design work, touches a funnel under active churn, or can't be verified in
+the reviewer's environment should be *ticketed instead*, with the exact patch recorded in the
+ticket body.
+
+**Why the separation.** Reviewer and worker are different jobs with different context, and
+conflating them loses findings:
+- A reviewer that only writes a dated markdown file on an unpushed audit branch has **no path
+  into the work queue**. It reads as done; nothing is scheduled. *(Lived: the cc-fe baseline of
+  2026-06-26 still had rows #2/#3/#4/#6 untouched on 2026-07-27 — a month — because thirteen
+  audit runs had produced reports and zero tickets. The run that finally filed them surfaced 7
+  real items that had been invisible backlog the whole time.)*
+- Unattended reviewers can't run the full test suite, can't build, and can't judge product
+  blast-radius. That's exactly the context a worker has and a reviewer doesn't.
+- One agent doing both optimizes for what it can safely change, so the *hard* findings — the
+  ones needing design or cross-repo coordination — are the ones that silently rot.
+
+**Ticket contents** — self-contained, actionable without the audit thread: what's wrong, `file:line`,
+why it matters *in this system* (who controls the input, what the attacker gets), the concrete fix
+(name the existing helper/pattern to copy), the traps the worker will hit, and an explicit
+**done-when**. Priority labels are org-level in Gitea (`P0` critical → `P3` minimal) and are set
+**after** creation — the create-issue API takes label IDs, not names, so `create_issue` then
+`set_issue_labels` with names.
+
+**What must NOT go in a ticket.** Tickets are written as if public (rule 16). A finding whose
+*description is itself the disclosure* — a live unrotated credential, an unpatched exploitable
+path with a working recipe — stays out of the tracker and goes to the human directly, with the
+detail left in the access-controlled audit note. "File a ticket" never overrides that.
+
+**The hand-off.** Delivering the list to the worker is part of the job, not an afterthought.
+Unattended runs (scheduled tasks) **cannot message other sessions** — cross-session messaging is
+disabled there — so the hand-off is a paste-ready block in the run's final summary, addressed to
+the repo's worker thread, ordered, with each ticket's one-line "why this order".
+
 ## Where this doc lives
-Canonical: `claude-config/governance/security.md` → `~/.claude/governance/security.md`. Extends the
+Canonical: `operating-canon/governance/security.md` → `~/.claude/governance/security.md`. Extends the
 [Constitution](README.md). Infra/host conventions in [technical.md](technical.md).

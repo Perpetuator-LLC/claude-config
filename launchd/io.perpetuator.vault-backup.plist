@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>io.perpetuator.vault-backup</string>
+  <key>ProgramArguments</key><array>
+    <string>/bin/bash</string>
+    <string>/Users/nik/projects/operating-canon/bin/vault-backup.sh</string>
+  </array>
+  <key>StartInterval</key><integer>1800</integer>
+  <key>RunAtLoad</key><true/>
+  <key>EnvironmentVariables</key><dict>
+    <key>SSH_AUTH_SOCK</key>
+    <string>/Users/nik/Library/Containers/com.maxgoedjen.Secretive.SecretAgent/Data/socket.ssh</string>
+  </dict>
+  <key>StandardOutPath</key><string>/tmp/vault-backup.launchd.log</string>
+  <key>StandardErrorPath</key><string>/tmp/vault-backup.launchd.log</string>
+</dict></plist>

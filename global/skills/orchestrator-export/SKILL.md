@@ -79,15 +79,42 @@ want to see the file set. Record each written path — those are the "reasoning"
 doc. (Desktop `local_…` session ids don't match filenames; batch.py matches by cwd + recency, so it
 Just Works for the fleet.)
 
-### 4. Continuation export — drive each worker to summarize itself
-For each active worker stream, `send_message` a directive: **"Run `#SessionSummary` — write your
-addendum to `Journal/<YYYYMM>/thread_handoff.md` and bring your per-repo continuation doc current;
-reply with the two paths."** Batch these. The worker's own export is authoritative for its work-state
-(it knows its uncommitted edits, its half-open PRs, its design exceptions). Where a worker is idle,
-asleep, or unreachable, **do not block** — note "continuation: board row + tickets + reasoning export
-only" for that stream and move on. The floor from step 3 still holds.
+### 4. Continuation export — drive EVERY active stream, and TRACK IT TO COMPLETION
+For **every** active worker stream — not just the busy ones — `send_message` a directive: **"Run
+`#SessionSummary` — write your addendum to `Journal/<YYYYMM>/thread_handoff.md` and bring your per-repo
+continuation doc current; reply with the two paths."** Batch these. The worker's own export is
+authoritative for its work-state (it knows its uncommitted edits, its half-open PRs, its design
+exceptions). Vault streams (notes-perpetuator, notes-nik, notes-weown) summarize in place and **never
+commit**; keep each engagement's summary in its OWN vault (custody boundary / rule 25 — a WeOwn
+summary must not bleed into the Perpetuator vault).
 
-Vault streams (notes-perpetuator, notes-nik) summarize in place and **never commit**.
+**This is a COMPLETION-TRACKED fan-out, not fire-and-forget (Nik #capture, 2026-08-05).** A fanned-out
+drive that expects a reply is not done until the replies are in. The strike: on the 2026-08-05
+migration the boss drove only the 3 busiest streams and marked the rest "floor-only", and every one
+of the 7 it under-drove came back with a state correction it would otherwise have migrated *wrong* — a
+dead provider fact (RunPod→AWS), a box-identity error (lestrange→hel1), a whole "ALLM blocked" premise
+that was false, a frozen-file trap, a metered GPU with a non-portable off-switch, and a landmine that
+would have let a fresh worker **wipe live Keycloak**. Under-driving is not a small omission; the
+un-driven stream is exactly where the silent migration defect hides.
+
+Mechanics that make it a barrier:
+- **Maintain a per-stream ACK CHECKLIST** (stream → driven? → acked?). The migration is not complete
+  until every active stream is either **acked** or **floor-only with a recorded reason** — and
+  "floor-only" is legitimate ONLY after N re-drive attempts with no response, never as a first-pass
+  scoping choice.
+- **The ACK is the DELIVERABLE, not the reply.** Verify the *written summary* landed — grep
+  `thread_handoff.md` for the stream's dated addendum, or stat the per-repo doc — do NOT wait on a
+  `send_message` reply, which may never come even when the work is done. (2026-08-05: three streams
+  were treated as "still pending" while their addenda were already written in the doc — the reply
+  lagged the deliverable.) Verify the artifact, not a proxy for it.
+- **Re-drive on the loop.** Between drive and ack, keep sweeping; each sweep, re-`send_message` any
+  active stream still missing its deliverable (rule 20: a third nudge changes the ask — "reply with
+  the path" → "confirm the addendum is written"). Push the worker forward until the deliverable exists.
+  Do other queue work while waiting; never idle-block on one lagging stream, but never close the
+  migration with it un-acked either.
+- **Idle/asleep/unreachable → floor-only, RECORDED.** Only after the re-drives fail does a stream drop
+  to "continuation: board row + tickets + reasoning export only", and the doc names it so the next
+  migration doesn't silently inherit the gap. The step-3 reasoning floor always holds regardless.
 
 ### 5. Assemble the master migration doc
 Write **one** dated bundle — home = the same Threads folder the exports use:
@@ -113,14 +140,19 @@ Hand Nik the one paste-ready block (template below). It bootstraps the skills if
 them, becomes the orchestrator, ingests the master doc, then re-hydrates and drives each worker from
 its own export. **This is the only thing Nik pastes.**
 
+The prompt must include this import-loop rule (three cases, one behavior): *"If THIS session already
+runs an orchestrator loop, keep it and just ingest. Otherwise arm your sweep cron now. Either way,
+check for another live orchestrator session; if one exists, message it to stop its loop and stand
+down — your loop must be running first."*
+
 ## The kickoff prompt (paste-ready template — fill the two dates)
 
 ````
 Skills bootstrap first: if the `/orchestrator`, `/orchestrator-export`, `/export-thread`, or
 `/session-summary` skills aren't available to you, install them from canon —
-`~/projects/claude-config/install.sh` symlinks `~/.claude/skills` → the repo's `global/skills`. If
-`claude-config` isn't on this machine, read each skill body directly at
-`~/projects/claude-config/global/skills/<name>/SKILL.md` and follow it inline. Do not re-author skills
+`~/projects/operating-canon/install.sh` symlinks `~/.claude/skills` → the repo's `global/skills`. If
+`operating-canon` isn't on this machine, read each skill body directly at
+`~/projects/operating-canon/global/skills/<name>/SKILL.md` and follow it inline. Do not re-author skills
 that already exist there.
 
 You are the fleet ORCHESTRATOR (SOP-ORCH-001). Read, in order:
@@ -130,13 +162,85 @@ You are the fleet ORCHESTRATOR (SOP-ORCH-001). Read, in order:
 4. Engagements/Internal/Journal/<YYYYMM>/Threads/<date>-FLEET-MIGRATION.md  (this migration bundle)
 
 Then MIGRATE THE CREW:
-- Provision the Standing Crew Routines (list_scheduled_tasks → create any missing from the board table).
+- RECONCILE THE STANDING ROUTINES against the migration doc's Routines table, using the resolution
+  matrix in `/orchestrator-export` (ADD missing · UPDATE stale · ADOPT-UPWARD newer-here, PRing it
+  back to canon · INVESTIGATE unknown-here then adopt-or-stop · STOP tombstoned · LEAVE ALONE
+  host-local · LEAVE DORMANT inactive-engagement). Never delete a routine — disarm and tombstone.
+  Then verify: `list_scheduled_tasks` shows every portable routine armed, and each has fired once.
+  A routine that migrated but never fired is a failed migration.
 - For EACH stream in the migration doc: spin up / adopt its worker thread in the listed cwd, hand that
   worker its OWN two export links (continuation + reasoning) as its starting context, and dispatch its
   ONE current task (rule 18) via a cross-session message + a ticket comment (rule 2).
 - Verify every "done" three ways (ticket + git + CI) before reassigning (rule 1). Never implement.
 - Surface the Nik-gated stack from the board — the only list Nik acts on.
 ````
+
+## Standing Routines are migration payload (2026-08-02, Nik-stated)
+
+A crew is its threads **and** the routines that run without them. Migrate only threads and the fresh
+boss inherits a crew that has silently stopped doing everything nightly — silently, because a routine
+that never fires emits nothing. **Every skill and scheduled task is migration payload.**
+
+### The structural defect this closes (verified 2026-08-02)
+
+`~/.claude/skills` is a **symlink into `operating-canon/global/skills/`** — skill bodies are versioned
+and travel with a `git clone` + `install.sh`. **`~/.claude/scheduled-tasks/` is a plain directory**
+with no canon backing and no handling in `install.sh`/`update.sh`; on 2026-08-02 it held **14 tasks
+that existed on exactly one Mac**. The *bodies* migrate and the *schedules* do not: a new machine gets
+every skill and fires none of them. Until `scheduled-tasks/` is versioned the same way, step 4b below
+is the only thing between a migration and a silently dead crew.
+
+### Routine passport (what makes a routine classifiable)
+
+A destination boss cannot resolve a routine it cannot identify. Every routine — skill or scheduled
+task — carries these frontmatter keys; classify-by-guessing is the failure this prevents:
+
+| Key | Meaning |
+|---|---|
+| `scope` | `portable` (belongs on every host) · `host-local` (this machine/config only — never adopted, never deleted elsewhere) · `engagement:<name>` (travels only with that engagement) |
+| `canon_origin` | path in `operating-canon`, or `local` if never promoted |
+| `canon_version` | content hash or date of the canon body it was installed from |
+| `schedule` | the cron line, so the schedule migrates with the body |
+| `retired` | date + superseding routine, if it is a tombstone (e.g. `nightly-tuleap-reconcile`) |
+
+### Step 4b — Routine inventory (runs alongside the per-thread exports)
+
+Enumerate **both halves** and diff them against canon:
+```bash
+ls ~/.claude/scheduled-tasks/                  # schedules — NOT versioned today
+ls ~/projects/operating-canon/global/skills/   # bodies — versioned
+```
+plus `list_scheduled_tasks` for what is actually **armed**. A body on disk with no live schedule is a
+third state and the most common silent failure. Record the union in the master migration doc as a
+**Routines table**: name · scope · schedule · canon path · armed? · last successful run.
+
+### The resolution matrix (what the destination boss does with each routine)
+
+Every routine lands in exactly one cell. **The default is never "copy it".**
+
+| At destination | In migration set | Resolution |
+|---|---|---|
+| missing | present, `scope: portable` | **ADD** — install from canon, arm the schedule, verify it fires once |
+| present, older `canon_version` | present, newer | **UPDATE** — re-point to canon; keep any host-local config file beside it |
+| present, newer `canon_version` | present, older | **ADOPT UPWARD** — the destination has the better body; PR it back into `operating-canon` *before* the migration doc closes, or the improvement dies here |
+| present | absent, canon has no record | **INVESTIGATE → adopt or stop** — either a local invention worth promoting (`scope: portable`, PR to canon) or an orphan. Never auto-delete |
+| present, `retired:` set | either | **STOP** — disarm the schedule, keep the tombstone body so a stale schedule fails harmlessly (`nightly-tuleap-reconcile` is the reference tombstone) |
+| present, `scope: host-local` | either | **LEAVE ALONE** — do not adopt, delete, or promote. Record it as host-local so the *next* migration doesn't re-litigate it |
+| present, `scope: engagement:<x>` | engagement not active here | **LEAVE DORMANT** — keep the body, do not arm the schedule |
+
+Two rules that make the matrix safe:
+- **Never delete a routine during a migration.** Disarm and tombstone; deletion is a separate,
+  deliberate act with a soak (SOP-GOV-004). A migration that deletes is unrecoverable.
+- **Adoption is bidirectional.** A migration is exactly when host-local improvements get promoted to
+  canon. If the doc closes with a destination routine canon has never seen and nobody decided about,
+  that is a defect — the next migration silently drops it.
+
+### Acceptance test
+
+The migration is done when, at the destination, `list_scheduled_tasks` shows every `scope: portable`
+routine **armed**, each has **fired once successfully**, and every host-local/dormant/tombstoned
+routine is named in the doc with its reason. **A routine that migrated but never fired is a failed
+migration** — it fails silently, so it must be tested, never assumed.
 
 ## Relationship to the other skills (don't reinvent — orchestrate)
 - **`/export-thread`** — the per-thread reasoning renderer. This skill fans it across the fleet (step 3).

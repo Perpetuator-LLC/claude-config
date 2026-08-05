@@ -1,11 +1,11 @@
 ---
 name: nightly-sop-distill
-description: Nightly SOP distillation (22:30, after tuleap-reconcile): scan vault for promotable procedure/reference knowledge, DRAFT condensed SOPs in their engagement/product SOPs folder (proposer only — never publishes), update the register + bidirectional provenance, write a run report.
+description: Nightly SOP distillation (22:30, after the signal/journal ingests): scan vault for promotable procedure/reference knowledge, DRAFT condensed SOPs in their engagement/product SOPs folder (proposer only — never publishes), update the register + bidirectional provenance, write a run report.
 ---
 
 Run the sop-distill skill in full per its SKILL.md at `/Users/nik/projects/notes/Perpetuator/Engagements/Internal/Products/Perpetuator/Skills/sop-distill/SKILL.md`.
 
-This runs nightly at 22:30, AFTER nightly-tuleap-reconcile (22:00), so State docs are settled before distilling.
+This runs nightly at 22:30, AFTER the journal/signal ingests, so State docs are settled before distilling. (nightly-tuleap-reconcile was retired 2026-07-25 — ADR-025.)
 
 Steps (per the skill):
 1. Read the skill's SKILL.md fresh — the workflow may have evolved.

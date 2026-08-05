@@ -116,6 +116,11 @@
             "type": "command",
             "command": "bash ~/.claude/hooks/bash-safety-gate.sh",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/script-audit.sh",
+            "timeout": 5
           }
         ]
       },
@@ -177,5 +182,6 @@
       }
     ]
   },
-  "skipWorkflowUsageWarning": true
+  "skipWorkflowUsageWarning": true,
+  "switchModelsOnFlag": false
 }

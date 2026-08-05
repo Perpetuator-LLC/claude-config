@@ -9,7 +9,7 @@ When the human tags a message **#capture** (alone or with a hint narrowing the t
 
 1. **Distill.** Extract the *concepts and why*, not the session transcript: how the system works, the threat/decision model, the non-obvious gotchas, how to recover/rebuild from cold. A hint scopes it; no hint = capture everything durable from the session.
 2. **Route to the right layer(s)** (G6/G11 — route-before-create, update the canon, thin pointers elsewhere):
-   - Universal agent behavior → the config source (`~/projects/claude-config/global/CLAUDE.md`), committed `docs():`.
+   - Universal agent behavior → the config source (`~/projects/operating-canon/global/CLAUDE.md`), committed `docs():`.
    - Personal/家 systems (home infra, backups, succession) → **Nik vault**, canonical doc for that domain (e.g. `Foundation/*`); append dated sections (G2), respect frontmatter/8×8 (G3/L6), never commit (sync automation owns git).
    - Business/product/ops knowledge → **Perpetuator vault** (SOP beside its product, or R&D note) or the owning code repo's docs; stale recipes get a dated correction appended, not a rewrite.
    - Cross-session facts/pointers → auto-memory (pointer to the canon, never the content).

@@ -6,7 +6,7 @@ governs: all-surfaces
 status: draft
 owner: Nik
 created: 2026-06-26
-canonical_home: claude-config/governance/
+canonical_home: operating-canon/governance/
 distribution: "install.sh → ~/.claude/governance/ + @import into global CLAUDE.md; init-project.sh → every repo surface"
 ---
 
@@ -19,7 +19,7 @@ domains. It contains **no secrets and no client-specific config** (those live in
 config and each engagement's overlay).
 
 > **Status: draft** until reviewed and published (G4 — nothing an agent authors is authoritative
-> until a human publishes it). **Distributed** from the **`claude-config`** repo: `install.sh`
+> until a human publishes it). **Distributed** from the **`operating-canon`** repo: `install.sh`
 > symlinks `governance/` → `~/.claude/governance/` and `@`-imports this file into the global
 > `CLAUDE.md` (so every session everywhere inherits the Core); `init-project.sh` seeds a thin
 > pointer into each repo's surfaces (`CLAUDE.md`, `AGENTS.md`, Copilot, Continue, Cursor).
@@ -114,13 +114,20 @@ them to concrete tools in each repo's config):
 | **Cross-cutting** | Decision/ADR · RAID · Responsibility · Evidence | recorded closest to where enacted, linked upward |
 | **Registry & knowledge** | Instances · Knowledge Base (rules, protocols, learnings, contributors) | **KMS vault** |
 
+**Cross-cutting records** (refined 2026-07-25): ADRs/Decisions, RAID/Risks, and Evidence/Learnings
+are **repo-specific** (live in the owning repo's docs); RACI/Accountability, Objects
+(Instances/People/Organizations/Definitions/Meetings), and Governance
+(Rules/Protocols/Best-Practices/SOPs) live in the **KMS vault as Bases + documents**.
+Working status map: vault `PLAN-ARTIFACT-CONSOLIDATION-1` (Artifact Migration — Consolidation
+Pass); repo-side standard: mcp `docs/guides/doc-standards.md`.
+
 A PM tool (Tuleap/Jira/Linear) MAY *mirror* the spine for tracking, but the **authoritative source**
 for each artifact is its home above — the mirror is a convenience, not the record.
 
 ---
 
 ## Distribution & precedence of files
-`claude-config` is the **baseline**. A repo's own `CLAUDE.md` / `AGENTS.md` may extend or override it
+`operating-canon` is the **baseline**. A repo's own `CLAUDE.md` / `AGENTS.md` may extend or override it
 for that repo's specifics — the more-specific, more-local instruction wins for that repo. A human's
 in-session instruction wins over all files. This Core reaches every surface via the table at the top;
 if your tool didn't load it, open `~/.claude/governance/README.md`.
@@ -132,3 +139,4 @@ if your tool didn't load it, open `~/.claude/governance/README.md`.
 |---|---|---|---|
 | 2026-06-23 | 0.1.0 | Initial single-file GOVERNANCE.md (G-rules + placement) in the Perpetuator vault | Nik |
 | 2026-06-26 | 0.2.0 | Split into C-Suite role domains under `claude-config/governance/`; added precedence + engagement-layering; canonical home = claude-config | Nik (via Claude Code) |
+| 2026-08-05 | 0.3.0 | Repo renamed **`claude-config` → `operating-canon`**; `canonical_home` + all functional references updated. Dated rows above are preserved verbatim under the old name (G2 append-only history — they record what was true on their date). | Nik (via Claude Code) |
