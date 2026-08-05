@@ -200,6 +200,32 @@ it must NOT absorb.*
 allowlist, an OAuth subject, an account-scoped quota, or anything else keyed to *who* rather than
 *what is granted*, it does not consolidate.
 
+### Passing the authorization test is PERMISSION to consolidate, not OBLIGATION (2026-08-04)
+
+The test above answers *"is merging legal?"* — it says nothing about *"is merging wise?"* **That is a
+second, independent question, and its axis is blast radius.**
+
+**Strike (2026-08-04, mine):** asked whether one `perpetuator-release-bot` token could serve both the
+registry push and the protected-tag push, I applied the authorization test, found both checkers
+satisfiable by that one identity, and recommended consolidating. The cc-be worker refused and was
+right: **the two credentials are not symmetric in exposure.** The registry credential has a
+*demonstrated* leak path into published artifacts — it was copied into published image layers,
+readable by anyone who could pull (#245/#260, since fixed and regression-gated). The release
+credential has no such realized failure. Share one value and a reopened leak stops yielding *"can
+push images"* and starts yielding *"can push images **and forge a protected release tag**"* — on the
+namespace whose entire purpose is that humans cannot create tags in it. **No part of the identity
+test detects that.**
+
+**The rule:** a credential with a **demonstrated** leak path stays minimal even when the identity
+test says merging is legal. Prefer **same identity, separate tokens with disjoint scopes** — it banks
+the whole benefit (one bot identity, no human in CI, allowlist satisfied) while keeping the
+leak-prone credential exactly as small as it already was. An extra token rotating through the same
+account and the same flow is not a real cost.
+
+**And check first whether the credential is needed at all.** Both of the above are moot if the
+platform's ephemeral job token can already do the job — *removing* an operation beats consolidating
+it, and beats splitting it. Probe before you design the merge.
+
 ### Corollary — run the CHECK before the irreversible step; that is NOT the same as moving the step
 
 The same incident exposed an ordering asymmetry. cc-fe's deploy job declares `needs: [release]`,
