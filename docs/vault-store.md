@@ -59,9 +59,27 @@ normal `![[file.png]]` wikilink — indistinguishable from a vault-local attachm
 4. Set `attachmentFolderPath` to `_store/Attachments` in `.obsidian/app.json` (if the vault
    commits its `.obsidian`; otherwise set it in the UI: Settings → Files & Links → Default
    location for new attachments).
-5. Run `vault-store-link.sh`. Move existing large files with a checksum-verified mover
-   (pattern: `bin/vault-store-migrate-notes-nik.sh` — rsync `--checksum`, sha256
-   source-vs-dest, delete only after match, TSV manifest).
+5. Run `vault-store-link.sh`. Move existing large files with `bin/vault-store-migrate.sh
+   <vault>`, driven by a committed `.vault-store-migrate.list` in the vault root (paths,
+   one per line, `#` comments, a directory means its whole tree). rsync `--checksum`,
+   sha256 source-vs-dest, delete only after match, TSV manifest, per-file progress.
+
+⚠️ **Selecting the move set: size is not a sufficient heuristic.** The move works because
+Obsidian resolves embeds by **basename**. Three cases defeat that silently — the file
+lands on the NAS, the note renders a missing-embed placeholder, and nothing errors:
+
+| Case | Why it breaks | Handling |
+|---|---|---|
+| **Path-style links** — `[[Attachments/foo.png]]` or `](Attachments/foo.png)` | The note names a location, not a basename; after the move that path is gone | **Exclude**, or rewrite the link to `_store/…` first |
+| **Duplicate basenames** across the vault | Ambiguous resolution after the move | **Exclude** one, or rename |
+| **`_store` not resolving** (NAS unmounted, symlink missing) | Copy succeeds to the real path; vault can't reach it | Run `vault-store-link.sh` first |
+
+`vault-store-migrate.sh` now **hard-fails on all three before copying or deleting
+anything** — it greps the vault for each listed path verbatim, checks for basename
+collisions in the set, and verifies `_store` resolves to the same target `.vault-store`
+names. Found the hard way: a size-only pass over `notes-nik` would have broken 24
+path-referenced embeds (that vault carries 412 path-style wikilinks and 247 path-style
+markdown links overall).
 
 ⚠️ **Engagement vaults (e.g. notes-weown): think before enrolling.** The vault is a
 custody/subpoena boundary — "hand over the vault" stops being complete the moment some of

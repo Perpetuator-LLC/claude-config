@@ -28,6 +28,48 @@ expand() {  # list entries → individual files
 }
 
 total=$(expand 2>/dev/null | wc -l | tr -d ' ')
+
+# ── PRE-FLIGHT: three hard fails, all BEFORE anything is copied or deleted ──────
+# The move relies on Obsidian resolving embeds by BASENAME. Two link shapes and one
+# broken-symlink case defeat that, silently — the file lands on the NAS, the note
+# renders a missing-embed placeholder, and nothing errors. Caught by the notes-nik
+# worker 2026-08-04: 24 attachment files there are referenced by FULL PATH, and a
+# size-only heuristic would have moved them and broken every one.
+echo "── pre-flight ──"
+PF_FAIL=0
+
+# 1. path-style references: the listed vault-relative path appears verbatim in a note
+PATH_REFS=$(expand 2>/dev/null | while IFS= read -r f; do
+  grep -rlF "$f" --include='*.md' . 2>/dev/null | head -1 | sed "s|^|$f\t|"
+done)
+if [[ -n "$PATH_REFS" ]]; then
+  echo "  ABORT — these are referenced by FULL PATH; a basename move breaks the embed:"
+  echo "$PATH_REFS" | sed 's|^|    |' | head -20
+  echo "    ($(echo "$PATH_REFS" | wc -l | tr -d ' ') total) → exclude them, or rewrite the links first."
+  PF_FAIL=1
+fi
+
+# 2. basename collisions — ambiguous resolution after the move
+DUPES=$(expand 2>/dev/null | sed 's|.*/||' | sort | uniq -d)
+if [[ -n "$DUPES" ]]; then
+  echo "  ABORT — duplicate basenames in the move set (ambiguous after move):"
+  echo "$DUPES" | sed 's|^|    |'
+  PF_FAIL=1
+fi
+
+# 3. _store must resolve to the same target the copy is written to, or the moved
+#    files are on the NAS but unreachable from the vault.
+if [[ ! -d "$V/_store" ]]; then
+  echo "  ABORT — _store does not resolve. Run: bash $(dirname "${BASH_SOURCE[0]}")/vault-store-link.sh"
+  PF_FAIL=1
+elif [[ "$(cd "$V/_store" && pwd -P)" != "$(cd "$STORE" && pwd -P)" ]]; then
+  echo "  ABORT — _store points at $(cd "$V/_store" && pwd -P), but .vault-store says $STORE"
+  PF_FAIL=1
+fi
+
+[[ $PF_FAIL -eq 0 ]] || { echo "════ nothing moved."; exit 1; }
+echo "  ok: no path-style refs, no basename collisions, _store resolves"
+
 echo "════ migrate $(basename "$V") → $STORE  ($total files)"
 i=0; ok=0; fail=0
 while IFS= read -r f; do
