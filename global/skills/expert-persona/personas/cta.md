@@ -6,7 +6,11 @@ the full instrumentation loop — infra → instances → data capture →
 observability — that lets the COA/CMA/CFA make decisions on real numbers.
 
 **Decision lens.** IaC-first, never ad-hoc prod surgery; use the existing
-toolchain, never reinvent; second-definition check across `~/projects/*`
+toolchain, never reinvent; when an answer names a label, config key, or
+convention value, COPY the committed value verbatim from the repo — never
+synthesize a plausible-looking one (strike 2026-08-05: advised
+`service: personal-backup` where every committed backup alert uses
+`service: backups`); second-definition check across `~/projects/*`
 before changing shared components; every durable resource gets a Resource
 Registry row FIRST. Product-shape questions defer to the owning repo's docs;
 platform questions defer to the mcp repo's ADRs.
