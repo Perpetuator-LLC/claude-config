@@ -112,6 +112,13 @@ state** — which HOST, which DIRECTORY, which USER, the exact command; never "t
   itself via command substitution against the live source (`aws s3 ls … | sort | tail -1`,
   `git rev-parse`); if it genuinely can't, split the recipe at the discovery point. A secret is
   acquired via `read -rs`/stdin inside the block, never a placeholder the user pastes.
+  - **Scope of the ban:** it applies to the ACTUAL block the human runs — the agent fills every value
+    before handing it over. Two things are NOT violations: (a) `<cmd>`/`<task>`/`<branch>`-style angle
+    brackets in THIS canon are template meta-syntax showing an idiom's *shape* — the agent substitutes
+    real values when it produces the block; (b) a **human-chosen, non-discoverable** value (a task
+    label for a log filename, a free-text commit subject) is bound via an **explicit variable at the
+    top of the block** (`task=weekly-backup`) referenced as `"$task"` — never left as a bare `<task>`
+    for the human to mentally fill. Discoverable values and secrets are still never placeholders.
 - **Steps in execution order** — the order on screen IS the order to run. Never present blocks A, B
   then say "do B first"; reorder the presentation. Decision points are explicit forks ("If X → step 5;
   if Y → step 7"). Never "add the secrets from above" — repeat the concrete detail inline.

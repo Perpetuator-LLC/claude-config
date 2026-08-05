@@ -139,3 +139,4 @@ if your tool didn't load it, open `~/.claude/governance/README.md`.
 |---|---|---|---|
 | 2026-06-23 | 0.1.0 | Initial single-file GOVERNANCE.md (G-rules + placement) in the Perpetuator vault | Nik |
 | 2026-06-26 | 0.2.0 | Split into C-Suite role domains under `claude-config/governance/`; added precedence + engagement-layering; canonical home = claude-config | Nik (via Claude Code) |
+| 2026-08-05 | 0.3.0 | Repo renamed **`claude-config` → `operating-canon`**; `canonical_home` + all functional references updated. Dated rows above are preserved verbatim under the old name (G2 append-only history — they record what was true on their date). | Nik (via Claude Code) |
