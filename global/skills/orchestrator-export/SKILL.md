@@ -79,15 +79,42 @@ want to see the file set. Record each written path — those are the "reasoning"
 doc. (Desktop `local_…` session ids don't match filenames; batch.py matches by cwd + recency, so it
 Just Works for the fleet.)
 
-### 4. Continuation export — drive each worker to summarize itself
-For each active worker stream, `send_message` a directive: **"Run `#SessionSummary` — write your
-addendum to `Journal/<YYYYMM>/thread_handoff.md` and bring your per-repo continuation doc current;
-reply with the two paths."** Batch these. The worker's own export is authoritative for its work-state
-(it knows its uncommitted edits, its half-open PRs, its design exceptions). Where a worker is idle,
-asleep, or unreachable, **do not block** — note "continuation: board row + tickets + reasoning export
-only" for that stream and move on. The floor from step 3 still holds.
+### 4. Continuation export — drive EVERY active stream, and TRACK IT TO COMPLETION
+For **every** active worker stream — not just the busy ones — `send_message` a directive: **"Run
+`#SessionSummary` — write your addendum to `Journal/<YYYYMM>/thread_handoff.md` and bring your per-repo
+continuation doc current; reply with the two paths."** Batch these. The worker's own export is
+authoritative for its work-state (it knows its uncommitted edits, its half-open PRs, its design
+exceptions). Vault streams (notes-perpetuator, notes-nik, notes-weown) summarize in place and **never
+commit**; keep each engagement's summary in its OWN vault (custody boundary / rule 25 — a WeOwn
+summary must not bleed into the Perpetuator vault).
 
-Vault streams (notes-perpetuator, notes-nik) summarize in place and **never commit**.
+**This is a COMPLETION-TRACKED fan-out, not fire-and-forget (Nik #capture, 2026-08-05).** A fanned-out
+drive that expects a reply is not done until the replies are in. The strike: on the 2026-08-05
+migration the boss drove only the 3 busiest streams and marked the rest "floor-only", and every one
+of the 7 it under-drove came back with a state correction it would otherwise have migrated *wrong* — a
+dead provider fact (RunPod→AWS), a box-identity error (lestrange→hel1), a whole "ALLM blocked" premise
+that was false, a frozen-file trap, a metered GPU with a non-portable off-switch, and a landmine that
+would have let a fresh worker **wipe live Keycloak**. Under-driving is not a small omission; the
+un-driven stream is exactly where the silent migration defect hides.
+
+Mechanics that make it a barrier:
+- **Maintain a per-stream ACK CHECKLIST** (stream → driven? → acked?). The migration is not complete
+  until every active stream is either **acked** or **floor-only with a recorded reason** — and
+  "floor-only" is legitimate ONLY after N re-drive attempts with no response, never as a first-pass
+  scoping choice.
+- **The ACK is the DELIVERABLE, not the reply.** Verify the *written summary* landed — grep
+  `thread_handoff.md` for the stream's dated addendum, or stat the per-repo doc — do NOT wait on a
+  `send_message` reply, which may never come even when the work is done. (2026-08-05: three streams
+  were treated as "still pending" while their addenda were already written in the doc — the reply
+  lagged the deliverable.) Verify the artifact, not a proxy for it.
+- **Re-drive on the loop.** Between drive and ack, keep sweeping; each sweep, re-`send_message` any
+  active stream still missing its deliverable (rule 20: a third nudge changes the ask — "reply with
+  the path" → "confirm the addendum is written"). Push the worker forward until the deliverable exists.
+  Do other queue work while waiting; never idle-block on one lagging stream, but never close the
+  migration with it un-acked either.
+- **Idle/asleep/unreachable → floor-only, RECORDED.** Only after the re-drives fail does a stream drop
+  to "continuation: board row + tickets + reasoning export only", and the doc names it so the next
+  migration doesn't silently inherit the gap. The step-3 reasoning floor always holds regardless.
 
 ### 5. Assemble the master migration doc
 Write **one** dated bundle — home = the same Threads folder the exports use:
