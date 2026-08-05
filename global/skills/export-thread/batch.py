@@ -20,6 +20,7 @@ import render  # noqa: E402
 
 PERP = os.path.expanduser("~/projects/notes-perpetuator")
 NIK = os.path.expanduser("~/projects/notes-nik")
+WEOWN = os.path.expanduser("~/projects/notes-weown")
 
 # repo → routing. base_journal is where "<YYYYMM>/Threads/" hangs.
 FLEET = [
@@ -32,6 +33,7 @@ FLEET = [
     ("inference",         "Internal", "Perpetuator Inference", PERP, "Engagements/Internal/Journal"),
     ("notes-perpetuator", "Internal", "Perpetuator",       PERP, "Engagements/Internal/Journal"),
     ("notes-nik",         "Personal", "notes-nik",         NIK,  "Work/Journal"),
+    ("notes-weown",       "WeOwn",    "WeOwn",             WEOWN, "Journal"),
 ]
 
 PROJECTS = os.path.expanduser("~/.claude/projects")
