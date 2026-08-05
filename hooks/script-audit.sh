@@ -1,11 +1,14 @@
 #!/bin/bash
 # Hook: PreToolUse[Bash] — Audit agent-run SCRIPTS by capturing their content before execution.
 #
-# Why: shell history records `bash foo.sh` but NOT what foo.sh contained. When an agent
-# writes-then-runs a script (the sanctioned pattern for complex flows — `set -e` lives in a
-# file, not a pasted block), the file may be transient and the actual steps become invisible.
-# This recorder closes that blind spot: it appends each executed script's content to a local
-# audit log the moment before it runs.
+# Why: shell history records `bash foo.sh` / `python3 deploy.py` / `node run.js` but NOT what the
+# file contained. When an agent writes-then-runs a script (the sanctioned pattern for complex flows —
+# `set -e` lives in a file, not a pasted block), the file may be transient and the actual steps
+# become invisible. This recorder closes that blind spot: it appends each executed script's content
+# to a local audit log the moment before it runs.
+#
+# Covers shell (bash/sh/zsh/dash + source/.), python (python/python2/python3), and node, plus direct
+# execution (`./x`, `../x`) and recognizable files (*.sh *.py *.js *.mjs *.cjs *.ts).
 #
 # Contract:
 #   - Exit 0 ALWAYS. This is an audit recorder, never a gate — it must never block a tool call
@@ -24,23 +27,26 @@ AUDIT_DIR="$HOME/.claude/audit"
 LOG="$AUDIT_DIR/scripts.log"
 
 # --- Extract candidate script paths ------------------------------------------------------------
-# Cases: interpreter invocation (`bash|sh|zsh|dash` + optional flags + file), sourcing
-# (`source file` / `. file`), and direct execution (`./x`, `../x`, any `*.sh`).
-# Separators (; | & ( ) < >) are flattened to spaces so tokens split cleanly.
+# Cases: interpreter invocation (`bash|sh|zsh|dash|python|python3|node` + optional flags + file),
+# sourcing (`source file` / `. file`), and direct execution (`./x`, `../x`, any recognizable
+# script file). Separators (; | & ( ) < >) are flattened to spaces so tokens split cleanly.
 declare -a candidates=()
 armed=0
 for tok in $(echo "$cmd" | tr ';|&()<>' '        '); do
-  if [[ "$tok" =~ ^(bash|sh|zsh|dash|source|\.)$ ]]; then
+  if [[ "$tok" =~ ^(bash|sh|zsh|dash|source|\.|python|python2|python3|node)$ ]]; then
     armed=1
     continue
   fi
   if [[ $armed -eq 1 ]]; then
-    [[ "$tok" == -* ]] && continue      # skip interpreter flags (bash -x foo.sh), stay armed
+    [[ "$tok" == -* ]] && continue      # skip interpreter flags (bash -x foo.sh, python3 -u x.py), stay armed
     candidates+=("$tok")
     armed=0
     continue
   fi
-  if [[ "$tok" == ./* || "$tok" == ../* || "$tok" == *.sh ]]; then
+  # direct execution / recognizable script files (shell, python, node)
+  if [[ "$tok" == ./* || "$tok" == ../* \
+        || "$tok" == *.sh || "$tok" == *.py \
+        || "$tok" == *.js || "$tok" == *.mjs || "$tok" == *.cjs || "$tok" == *.ts ]]; then
     candidates+=("$tok")
   fi
 done
