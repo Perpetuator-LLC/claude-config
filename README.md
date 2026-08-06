@@ -67,7 +67,7 @@ Hooks are the mechanism for replicating Copilot's behavioral injection. They fir
 | `UserPromptSubmit` | `reminder-instructions.sh` | Every prompt | Injects autonomy directive ("keep going, take action") |
 | `SessionStart` | `session-start.sh` | New session | Generates workspace file tree + stack detection |
 | `PreToolUse[Bash]` | `bash-safety-gate.sh` | Before shell commands | Blocks `rm -rf`, force push, `DROP TABLE`, pipe-to-shell |
-| `PreToolUse[Bash]` | `script-audit.sh` | Before shell commands | Records executed **script content** (`bash x.sh`, `./x`) to `~/.claude/audit/scripts.log` — audit only, never blocks, never emits to context |
+| `PreToolUse[Bash]` | `script-audit.sh` | Before shell commands | Records executed **script content** — shell/python/node (`bash x.sh`, `python3 x.py`, `node x.js`, `./x`) to `~/.claude/audit/scripts.log` — audit only, never blocks, never emits to context |
 | `PreToolUse[Write]` | `write-safety-gate.sh` | Before file writes | Blocks writes to `.env`, credentials, key files |
 | `PostToolUse[Write\|Edit]` | `post-edit-lint.sh` | After file edits | Auto syntax-check (Python, TS, JS, Ruby, Go, JSON, YAML, shell) |
 | `Stop` | `notify-complete.sh` | Task finishes | Desktop notification (macOS + Linux) |
